@@ -1,0 +1,20 @@
+[project]
+name = "auto-order-splitting"
+version = "0.1.0"
+description = "School order purchase splitting tool"
+requires-python = ">=3.10"
+dependencies = [
+    "flask>=3.0.0",
+    "openpyxl>=3.1.0",
+]
+
+[project.scripts]
+auto-order-splitting = "auto_order_splitting.cli:main"
+auto-order-splitting-web = "auto_order_splitting.web_app:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["auto_order_splitting*"]
+
+[tool.setuptools.package-data]
+auto_order_splitting = ["web/static/*"]

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>自动拆单工具</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>自动拆单工具</h1>
+        <p id="templateStatus">未上传模板</p>
+      </div>
+      <div class="header-actions">
+        <a class="quiet-link" href="/api/template" target="_blank">模板数据</a>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel template-panel">
+        <div class="panel-head">
+          <h2>模板</h2>
+          <div class="inline-actions">
+            <button id="addTemplateRow" type="button">新增行</button>
+            <button id="saveTemplate" type="button" class="primary">保存模板</button>
+          </div>
+        </div>
+
+        <form id="templateForm" class="upload-row">
+          <input id="templateFile" name="template" type="file" accept=".xlsx" />
+          <button type="submit">上传模板</button>
+        </form>
+
+        <div class="toolbar">
+          <input id="templateSearch" type="search" placeholder="筛选商品 / 供应商 / 学校" />
+          <span id="templateCount" class="meta">0 行</span>
+        </div>
+
+        <div class="table-wrap template-table-wrap">
+          <table id="templateTable">
+            <thead>
+              <tr>
+                <th>负责人</th>
+                <th>供应商</th>
+                <th>商品</th>
+                <th>单位</th>
+                <th>数量</th>
+                <th>单价</th>
+                <th>备注</th>
+                <th>协议价(可空)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel order-panel">
+        <div class="panel-head">
+          <h2>订单</h2>
+          <button id="processOrders" form="orderForm" type="submit" class="primary">一键生成采购单</button>
+        </div>
+
+        <form id="orderForm" class="order-form">
+          <label class="file-drop">
+            <span>批量导入订单</span>
+            <input id="orderFiles" name="orders" type="file" accept=".xlsx" multiple />
+          </label>
+
+          <div id="orderFileList" class="file-list">未选择订单</div>
+
+          <div class="setting-grid">
+            <label>
+              跳过学校标识
+              <input id="skipKeywords" name="skipKeywords" type="text" value="营养餐" />
+            </label>
+            <label>
+              模糊阈值
+              <input id="fuzzyThreshold" name="fuzzyThreshold" type="number" min="0.70" max="1" step="0.01" value="0.88" />
+            </label>
+          </div>
+
+          <label class="check-row">
+            <input id="includeTemplateRows" name="includeTemplateRows" type="checkbox" />
+            <span>输出时带入模板已有数量行</span>
+          </label>
+        </form>
+
+        <div class="run-state">
+          <div id="message" class="message">等待导入订单</div>
+        <div id="downloadLinks" class="download-links"></div>
+        </div>
+      </section>
+    </main>
+
+    <section class="result-panel">
+      <div class="summary-strip" id="summaryStrip">
+        <div><strong>0</strong><span>采购行</span></div>
+        <div><strong>0</strong><span>未匹配</span></div>
+        <div><strong>0</strong><span>跳过</span></div>
+        <div><strong>0</strong><span>警告</span></div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button" data-tab="lines">采购结果</button>
+        <button class="tab" type="button" data-tab="unmatched">未匹配</button>
+        <button class="tab" type="button" data-tab="warnings">警告</button>
+        <button class="tab" type="button" data-tab="skipped">跳过</button>
+        <a id="debugExportLink" class="tab-export hidden" href="#">导出调试明细.xlsx</a>
+      </div>
+
+      <div class="table-wrap result-table-wrap">
+        <table id="resultTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <script src="/assets/app.js"></script>
+  </body>
+</html>
