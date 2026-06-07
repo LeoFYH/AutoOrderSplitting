@@ -3,6 +3,7 @@ const state = {
   sourceName: "",
   result: null,
   activeTab: "lines",
+  skipKeywords: ["营养餐"],
 };
 
 const fields = ["owner", "supplier", "product", "unit", "quantity", "price", "note", "agreement_price"];
@@ -19,7 +20,8 @@ const el = {
   orderForm: document.querySelector("#orderForm"),
   orderFiles: document.querySelector("#orderFiles"),
   orderFileList: document.querySelector("#orderFileList"),
-  skipKeywords: document.querySelector("#skipKeywords"),
+  skipKeywordList: document.querySelector("#skipKeywordList"),
+  addSkipKeyword: document.querySelector("#addSkipKeyword"),
   fuzzyThreshold: document.querySelector("#fuzzyThreshold"),
   includeTemplateRows: document.querySelector("#includeTemplateRows"),
   message: document.querySelector("#message"),
@@ -34,6 +36,7 @@ document.addEventListener("DOMContentLoaded", init);
 
 function init() {
   bindEvents();
+  renderSkipKeywords();
   loadTemplate();
   renderResultTable();
 }
@@ -45,6 +48,7 @@ function bindEvents() {
   el.saveTemplate.addEventListener("click", saveTemplate);
   el.orderFiles.addEventListener("change", renderOrderFiles);
   el.orderForm.addEventListener("submit", processOrders);
+  el.addSkipKeyword.addEventListener("click", addSkipKeyword);
 
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {
@@ -204,6 +208,51 @@ function renderOrderFiles() {
   el.orderFileList.innerHTML = files.map((file) => `<div>${escapeHtml(file.name)}</div>`).join("");
 }
 
+function renderSkipKeywords() {
+  const values = state.skipKeywords.length ? state.skipKeywords : [""];
+  el.skipKeywordList.innerHTML = "";
+  const fragment = document.createDocumentFragment();
+
+  values.forEach((value, index) => {
+    const row = document.createElement("div");
+    row.className = "skip-keyword-row";
+    row.innerHTML = `
+      <input class="skip-keyword-input" type="text" value="${escapeHtml(value)}" placeholder="例如：营养餐" />
+      <button class="skip-keyword-delete" type="button" title="删除">×</button>
+    `;
+    row.querySelector(".skip-keyword-input").addEventListener("input", (event) => {
+      state.skipKeywords[index] = event.target.value;
+    });
+    row.querySelector(".skip-keyword-delete").addEventListener("click", () => {
+      const values = collectSkipKeywords({ keepEmpty: true });
+      values.splice(index, 1);
+      state.skipKeywords = values.filter(Boolean);
+      renderSkipKeywords();
+    });
+    fragment.appendChild(row);
+  });
+
+  el.skipKeywordList.appendChild(fragment);
+}
+
+function addSkipKeyword() {
+  state.skipKeywords = collectSkipKeywords({ keepEmpty: true });
+  state.skipKeywords.push("");
+  renderSkipKeywords();
+  const inputs = el.skipKeywordList.querySelectorAll(".skip-keyword-input");
+  inputs[inputs.length - 1]?.focus();
+}
+
+function collectSkipKeywords(options = {}) {
+  const values = Array.from(el.skipKeywordList.querySelectorAll(".skip-keyword-input"))
+    .map((input) => input.value.trim());
+  if (options.keepEmpty) {
+    return values;
+  }
+  state.skipKeywords = values.filter(Boolean);
+  return state.skipKeywords;
+}
+
 async function processOrders(event) {
   event.preventDefault();
   collectTemplateItems();
@@ -223,7 +272,7 @@ async function processOrders(event) {
 
   const form = new FormData();
   Array.from(el.orderFiles.files).forEach((file) => form.append("orders", file));
-  form.append("skipKeywords", el.skipKeywords.value.trim());
+  form.append("skipKeywords", collectSkipKeywords().join(","));
   form.append("fuzzyThreshold", el.fuzzyThreshold.value);
   form.append("includeTemplateRows", el.includeTemplateRows.checked ? "true" : "false");
 
@@ -329,10 +378,19 @@ function renderSimpleTable(headers, rows) {
 
 async function apiJson(url, options = {}) {
   const response = await fetch(url, options);
-  const data = await response.json().catch(() => ({}));
+  const rawText = await response.text();
+  let data = {};
+  if (rawText) {
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = {};
+    }
+  }
   if (!response.ok) {
     const details = Array.isArray(data.details) && data.details.length ? `：${data.details.join("；")}` : "";
-    throw new Error(`${data.error || "请求失败"}${details}`);
+    const fallback = rawText ? rawText.slice(0, 200) : "请求失败";
+    throw new Error(`${data.error || fallback}${details}`);
   }
   return data;
 }

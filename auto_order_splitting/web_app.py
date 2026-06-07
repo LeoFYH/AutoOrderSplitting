@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from flask import Flask, jsonify, request, send_file, send_from_directory
+from werkzeug.exceptions import HTTPException
 
 from .excel_io import read_orders, read_template, write_debug_workbook, write_purchase_import
 from .models import PurchaseLine, SkippedLine, SplitResult, UnmatchedLine
@@ -32,6 +33,18 @@ def create_app() -> Flask:
     ensure_data_dirs()
     app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = 80 * 1024 * 1024
+
+    @app.errorhandler(ValueError)
+    def value_error(error: ValueError):
+        return jsonify({"error": str(error)}), 400
+
+    @app.errorhandler(HTTPException)
+    def http_error(error: HTTPException):
+        return jsonify({"error": error.description or error.name}), error.code or 500
+
+    @app.errorhandler(Exception)
+    def app_error(error: Exception):
+        return jsonify({"error": f"处理失败：{error}"}), 500
 
     @app.get("/")
     def index():

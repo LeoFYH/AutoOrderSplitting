@@ -69,6 +69,27 @@ class ExcelIoTests(unittest.TestCase):
             self.assertEqual(wb["采购结果"].cell(2, 1).value, "供应商A")
             self.assertEqual(wb["警告"].cell(2, 1).value, "单价不同")
 
+    def test_reads_order_export_with_order_quantity_aliases_from_non_active_sheet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            orders = Path(tmp) / "orders.xlsx"
+
+            wb = Workbook()
+            pivot = wb.active
+            pivot.title = "透视"
+            pivot.append(["求和项:下单数量", "列标签"])
+            detail = wb.create_sheet("订单明细导出")
+            detail.append(["订单号", "客户名称", "订单时间", "发货日期", "商品名称", "下单数量", "下单单位", "商品备注", "下单单价", "订单备注", "默认供应商"])
+            detail.append(["DD1", "学校A", "2026-06-06", "2026-06-08", "紫菜", 3, "包", "", 5.5, "下午到", "订单供应商"])
+            wb.save(orders)
+
+            order_lines = read_orders([orders])
+
+            self.assertEqual(len(order_lines), 1)
+            self.assertEqual(order_lines[0].quantity, Decimal("3"))
+            self.assertEqual(order_lines[0].unit, "包")
+            self.assertEqual(order_lines[0].order_price, 5.5)
+            self.assertEqual(order_lines[0].supplier, "订单供应商")
+
 
 if __name__ == "__main__":
     unittest.main()

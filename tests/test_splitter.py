@@ -96,28 +96,60 @@ class SplitterTests(unittest.TestCase):
         self.assertEqual(len(result.unmatched), 1)
         self.assertIn("学校", result.unmatched[0].reason)
 
-    def test_default_skip_markers_only_apply_to_exact_school_field(self):
+    def test_uses_order_supplier_when_template_has_no_match(self):
+        items = [
+            TemplateItem(5, "学校A", "供应商A", "猪肉", "斤", Decimal("0"), 8, "上午", None),
+        ]
+        orders = [
+            OrderLine(
+                2,
+                "DD1",
+                "学校B",
+                None,
+                "猪肉",
+                Decimal("3"),
+                None,
+                None,
+                "斤",
+                9,
+                "下午",
+                Path("订单.xlsx"),
+                supplier="订单供应商B",
+            ),
+        ]
+
+        result = split_orders(items, orders, include_template_rows=False, skip_keywords=())
+
+        self.assertEqual(len(result.unmatched), 0)
+        self.assertEqual(len(result.lines), 1)
+        self.assertEqual(result.lines[0].supplier, "订单供应商B")
+        self.assertEqual(result.lines[0].owner, "学校B")
+        self.assertEqual(result.lines[0].product, "猪肉")
+        self.assertEqual(result.lines[0].price, 9)
+
+    def test_skip_keywords_match_school_field(self):
         items = [
             TemplateItem(5, "营养餐", "供应商A", "紫菜", "包", Decimal("7"), 5, "上午到", None),
         ]
         orders = [
-            OrderLine(2, "DD1", "营养餐", None, "紫菜", Decimal("2"), None, None, "包", 6, "下午到", Path("订单.xlsx")),
+            OrderLine(2, "DD1", "光山县一中-早晚餐", None, "紫菜", Decimal("2"), None, None, "包", 6, "下午到", Path("订单.xlsx")),
         ]
 
-        result = split_orders(items, orders, include_template_rows=True)
+        result = split_orders(items, orders, include_template_rows=True, skip_keywords=("营养餐、早晚餐",))
 
         self.assertEqual(result.lines, [])
         self.assertEqual(len(result.skipped), 1)
+        self.assertIn("早晚餐", result.skipped[0].reason)
 
-    def test_skip_marker_is_not_substring_match(self):
+    def test_skip_keywords_do_not_match_product_or_note(self):
         items = [
             TemplateItem(5, "学校A", "供应商A", "紫菜", "包", Decimal("0"), 5, "", None),
         ]
         orders = [
-            OrderLine(2, "DD1", "营养餐学校", None, "紫菜", Decimal("2"), None, None, "包", 5, "", Path("订单.xlsx")),
+            OrderLine(2, "DD1", "学校B", None, "营养餐紫菜", Decimal("2"), None, None, "包", 5, "早晚餐送", Path("订单.xlsx")),
         ]
 
-        result = split_orders(items, orders, include_template_rows=False)
+        result = split_orders(items, orders, include_template_rows=False, skip_keywords=("营养餐", "早晚餐"))
 
         self.assertEqual(result.lines, [])
         self.assertEqual(len(result.skipped), 0)

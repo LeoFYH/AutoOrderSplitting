@@ -46,12 +46,13 @@ ORDER_ALIASES = {
     "customer": {"客户名称", "客户名称(学校)", "学校"},
     "ship_date": {"发货日期", "日期"},
     "product": {"商品名称"},
-    "quantity": {"发货数量", "数量"},
-    "amount": {"实际金额"},
+    "quantity": {"发货数量", "下单数量", "订购数量", "订单数量", "数量"},
+    "amount": {"实际金额", "下单金额", "订单金额"},
     "subtotal": {"发货小计", "小计"},
-    "unit": {"发货单位", "单位"},
-    "order_price": {"发货单价", "单价"},
+    "unit": {"发货单位", "下单单位", "订购单位", "订单单位", "单位"},
+    "order_price": {"发货单价", "下单单价", "订购单价", "订单单价", "单价"},
     "note": {"订单备注", "备注"},
+    "supplier": {"默认供应商", "供应商", "供应商名称"},
 }
 
 
@@ -91,9 +92,8 @@ def read_orders(paths: Iterable[str | Path]) -> list[OrderLine]:
     for raw_path in paths:
         path = Path(raw_path)
         wb = load_workbook(path, data_only=True)
-        ws = wb.active
-        header_row, columns = _find_header(
-            ws,
+        ws, header_row, columns = _find_header_in_workbook(
+            wb,
             ORDER_ALIASES,
             required={"order_no", "customer", "product", "quantity", "unit"},
         )
@@ -122,6 +122,7 @@ def read_orders(paths: Iterable[str | Path]) -> list[OrderLine]:
                     order_price=row.get("order_price"),
                     note=clean_text(row.get("note")),
                     source_file=path,
+                    supplier=clean_text(row.get("supplier")),
                 )
             )
     return lines
@@ -182,7 +183,7 @@ def write_debug_workbook(
     purchase_ws.title = "采购结果"
     _write_rows(
         purchase_ws,
-        ["供应商", "学校", "商品", "单位", "数量", "单价", "备注"],
+        ["供应商", "学校", "商品", "单位", "数量", "单价", "备注", "匹配方式"],
         [
             [
                 line.supplier,
@@ -192,6 +193,7 @@ def write_debug_workbook(
                 decimal_to_excel(line.quantity),
                 line.price,
                 line.note,
+                "、".join(sorted(line.match_methods)),
             ]
             for line in lines
         ],
@@ -273,7 +275,26 @@ def _find_header(
             return row_number, found
 
     missing = ", ".join(sorted(required - best_columns.keys()))
-    raise ValueError(f"Cannot find required headers in sheet {ws.title!r}: {missing}")
+    raise ValueError(f"在工作表「{ws.title}」找不到必要表头：{missing}")
+
+
+def _find_header_in_workbook(
+    wb,
+    aliases: dict[str, set[str]],
+    *,
+    required: set[str],
+) -> tuple[Worksheet, int, dict[str, int]]:
+    worksheets = [wb.active] + [ws for ws in wb.worksheets if ws is not wb.active]
+    errors: list[str] = []
+    for ws in worksheets:
+        try:
+            header_row, columns = _find_header(ws, aliases, required=required)
+            return ws, header_row, columns
+        except ValueError as error:
+            errors.append(str(error))
+
+    required_labels = "、".join(sorted(required))
+    raise ValueError(f"找不到订单明细表，必要字段：{required_labels}。已检查：{'；'.join(errors[:4])}")
 
 
 def _row_dict(ws: Worksheet, row_number: int, columns: dict[str, int]) -> dict[str, Any]:

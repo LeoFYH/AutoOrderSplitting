@@ -33,6 +33,7 @@ class OrderLine:
     order_price: Any
     note: str
     source_file: Path
+    supplier: str = ""
 
 
 @dataclass(frozen=True)

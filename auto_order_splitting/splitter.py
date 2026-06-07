@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from difflib import SequenceMatcher
 from pathlib import Path
+import re
 from typing import Iterable
 
 from .models import (
@@ -20,6 +21,7 @@ from .normalization import clean_text, normalize_product, same_excel_value
 
 
 DEFAULT_SKIP_KEYWORDS = ("营养餐",)
+SKIP_SEPARATOR_RE = re.compile(r"[,，、;\n\r\t]+")
 
 
 @dataclass(frozen=True)
@@ -186,7 +188,7 @@ def split_orders(
     skip_keywords: Iterable[str] = DEFAULT_SKIP_KEYWORDS,
     fuzzy_threshold: float = 0.88,
 ) -> SplitResult:
-    skip_keywords = tuple(clean_text(keyword) for keyword in skip_keywords if clean_text(keyword))
+    skip_keywords = _normalize_skip_keywords(skip_keywords)
     skipped_template_owners = {
         item.owner for item in template_items if _owner_skip_reason(item.owner, skip_keywords)
     }
@@ -239,6 +241,27 @@ def split_orders(
 
         match = catalog.match(order.product, order.unit, order.customer)
         if not match.item:
+            order_supplier = clean_text(order.supplier)
+            if order_supplier:
+                source_lines.append(
+                    SourceLine(
+                        source_type="order",
+                        source_file=order.source_file,
+                        source_row=order.row_number,
+                        owner=order.customer,
+                        supplier=order_supplier,
+                        product=order.product,
+                        unit=order.unit,
+                        quantity=order.quantity,
+                        price=order.order_price,
+                        note=order.note,
+                        agreement_price=None,
+                        match_method="order_supplier",
+                        order_no=order.order_no,
+                        original_product=order.product,
+                    )
+                )
+                continue
             unmatched.append(
                 UnmatchedLine(
                     source_file=order.source_file,
@@ -301,16 +324,27 @@ def _skip_reason(order: OrderLine, skip_keywords: tuple[str, ...]) -> str:
         return ""
     customer = clean_text(order.customer)
     for keyword in skip_keywords:
-        if customer == keyword:
-            return f"学校字段等于跳过标识：{keyword}"
+        if keyword in customer:
+            return f"学校字段命中跳过关键词：{keyword}"
     return ""
+
+
+def _normalize_skip_keywords(skip_keywords: Iterable[str]) -> tuple[str, ...]:
+    markers: list[str] = []
+    seen: set[str] = set()
+    for raw_keyword in skip_keywords:
+        for keyword in SKIP_SEPARATOR_RE.split(clean_text(raw_keyword)):
+            if keyword and keyword not in seen:
+                markers.append(keyword)
+                seen.add(keyword)
+    return tuple(markers)
 
 
 def _owner_skip_reason(owner: str, skip_keywords: tuple[str, ...]) -> str:
     owner = clean_text(owner)
     for keyword in skip_keywords:
-        if owner == keyword:
-            return f"模板负责人等于跳过标识：{keyword}"
+        if keyword in owner:
+            return f"模板负责人命中跳过关键词：{keyword}"
     return ""
 
 

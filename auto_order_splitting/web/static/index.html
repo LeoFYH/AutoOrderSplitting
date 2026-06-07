@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>自动拆单工具</title>
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20260606b" />
   </head>
   <body>
     <header class="app-header">
@@ -72,10 +72,11 @@
           <div id="orderFileList" class="file-list">未选择订单</div>
 
           <div class="setting-grid">
-            <label>
-              跳过学校标识
-              <input id="skipKeywords" name="skipKeywords" type="text" value="营养餐" />
-            </label>
+            <div class="skip-editor">
+              <div class="field-label">跳过关键词（学校）</div>
+              <div id="skipKeywordList" class="skip-keyword-list"></div>
+              <button id="addSkipKeyword" class="skip-add" type="button">+ 加关键词</button>
+            </div>
             <label>
               模糊阈值
               <input id="fuzzyThreshold" name="fuzzyThreshold" type="number" min="0.70" max="1" step="0.01" value="0.88" />
@@ -119,6 +120,6 @@
       </div>
     </section>
 
-    <script src="/assets/app.js"></script>
+    <script src="/assets/app.js?v=20260606b"></script>
   </body>
 </html>

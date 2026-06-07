@@ -280,13 +280,46 @@ td input:focus {
   display: grid;
   grid-template-columns: 1fr 112px;
   gap: 10px;
+  align-items: start;
 }
 
-.setting-grid label {
+.setting-grid label,
+.skip-editor {
   display: grid;
   gap: 6px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.field-label {
+  color: var(--muted);
+}
+
+.skip-keyword-list {
+  display: grid;
+  gap: 6px;
+}
+
+.skip-keyword-row {
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  gap: 6px;
+}
+
+.skip-keyword-delete {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  color: var(--danger);
+  background: #fff;
+}
+
+.skip-add {
+  justify-self: start;
+  min-height: 30px;
+  padding: 0 10px;
+  color: var(--primary);
+  background: #fffefb;
 }
 
 .check-row {

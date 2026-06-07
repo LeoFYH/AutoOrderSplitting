@@ -33,12 +33,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--skip-keyword",
         action="append",
         default=[],
-        help="额外跳过学校标识，可重复传入；只在订单学校字段完全相等时生效",
+        help="额外跳过学校关键词，可重复传入；只检查订单学校字段",
     )
     parser.add_argument(
         "--no-default-skip",
         action="store_true",
-        help="不使用默认跳过学校标识（默认：营养餐）",
+        help="不使用默认跳过学校关键词（默认：营养餐）",
     )
     parser.add_argument(
         "--fuzzy-threshold",
