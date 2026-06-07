@@ -217,6 +217,8 @@ def purchase_line_to_dict(line: PurchaseLine) -> dict[str, Any]:
         "unit": line.unit,
         "quantity": decimal_to_excel(line.quantity),
         "price": line.price,
+        "productNote": line.product_note,
+        "orderNote": line.order_note,
         "note": line.note,
         "agreementPrice": line.agreement_price,
         "matchMethods": sorted(line.match_methods),
@@ -232,6 +234,8 @@ def unmatched_to_dict(line: UnmatchedLine) -> dict[str, Any]:
         "product": line.product,
         "quantity": decimal_to_excel(line.quantity),
         "unit": line.unit,
+        "productNote": line.product_note,
+        "orderNote": line.order_note,
         "note": line.note,
         "reason": line.reason,
     }
@@ -246,6 +250,8 @@ def skipped_to_dict(line: SkippedLine) -> dict[str, Any]:
         "product": line.product,
         "quantity": decimal_to_excel(line.quantity),
         "unit": line.unit,
+        "productNote": line.product_note,
+        "orderNote": line.order_note,
         "note": line.note,
         "reason": line.reason,
     }

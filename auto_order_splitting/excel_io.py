@@ -27,6 +27,7 @@ TEMPLATE_OUTPUT_HEADERS = [
     "*采购数量",
     "*采购单价",
     "商品备注",
+    "订单备注",
     "已设置采购协议价",
 ]
 
@@ -51,7 +52,8 @@ ORDER_ALIASES = {
     "subtotal": {"发货小计", "小计"},
     "unit": {"发货单位", "下单单位", "订购单位", "订单单位", "单位"},
     "order_price": {"发货单价", "下单单价", "订购单价", "订单单价", "单价"},
-    "note": {"订单备注", "备注"},
+    "product_note": {"商品备注"},
+    "order_note": {"订单备注", "备注"},
     "supplier": {"默认供应商", "供应商", "供应商名称"},
 }
 
@@ -108,6 +110,8 @@ def read_orders(paths: Iterable[str | Path]) -> list[OrderLine]:
             product = clean_text(row.get("product"))
             if not product:
                 continue
+            product_note = clean_text(row.get("product_note"))
+            order_note = clean_text(row.get("order_note"))
             lines.append(
                 OrderLine(
                     row_number=row_number,
@@ -120,9 +124,11 @@ def read_orders(paths: Iterable[str | Path]) -> list[OrderLine]:
                     subtotal=row.get("subtotal"),
                     unit=clean_text(row.get("unit")),
                     order_price=row.get("order_price"),
-                    note=clean_text(row.get("note")),
+                    note=_combine_notes(product_note, order_note),
                     source_file=path,
                     supplier=clean_text(row.get("supplier")),
+                    product_note=product_note,
+                    order_note=order_note,
                 )
             )
     return lines
@@ -139,15 +145,15 @@ def write_purchase_import(template_path: str | Path, output_path: str | Path, li
     ws = wb.active
     ws.title = source_ws.title[:31]
 
-    max_copy_col = len(TEMPLATE_OUTPUT_HEADERS)
     for row in range(1, header_row + 1):
-        for col in range(1, max_copy_col + 1):
-            _copy_cell(source_ws.cell(row, col), ws.cell(row, col))
+        for source_col, output_col in _purchase_template_column_map():
+            _copy_cell(source_ws.cell(row, source_col), ws.cell(row, output_col))
 
     for idx, header in enumerate(TEMPLATE_OUTPUT_HEADERS, start=1):
         cell = ws.cell(header_row, idx, header)
-        if source_ws.cell(header_row, idx).has_style:
-            _copy_cell(source_ws.cell(header_row, idx), cell)
+        source_col = _purchase_header_style_source_col(idx)
+        if source_ws.cell(header_row, source_col).has_style:
+            _copy_cell(source_ws.cell(header_row, source_col), cell)
             cell.value = header
 
     for row_idx, line in enumerate(lines, start=header_row + 1):
@@ -158,7 +164,8 @@ def write_purchase_import(template_path: str | Path, output_path: str | Path, li
             line.unit,
             decimal_to_excel(line.quantity),
             line.price,
-            line.note,
+            line.product_note,
+            line.order_note,
             line.agreement_price,
         ]
         for col_idx, value in enumerate(values, start=1):
@@ -183,7 +190,7 @@ def write_debug_workbook(
     purchase_ws.title = "采购结果"
     _write_rows(
         purchase_ws,
-        ["供应商", "学校", "商品", "单位", "数量", "单价", "备注", "匹配方式"],
+        ["供应商", "学校", "商品", "单位", "数量", "单价", "商品备注", "订单备注", "备注", "匹配方式"],
         [
             [
                 line.supplier,
@@ -192,6 +199,8 @@ def write_debug_workbook(
                 line.unit,
                 decimal_to_excel(line.quantity),
                 line.price,
+                line.product_note,
+                line.order_note,
                 line.note,
                 "、".join(sorted(line.match_methods)),
             ]
@@ -202,7 +211,7 @@ def write_debug_workbook(
     unmatched_ws = wb.create_sheet("未匹配")
     _write_rows(
         unmatched_ws,
-        ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "备注", "原因"],
+        ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "商品备注", "订单备注", "备注", "原因"],
         [
             [
                 item.source_file.name,
@@ -212,6 +221,8 @@ def write_debug_workbook(
                 item.product,
                 decimal_to_excel(item.quantity),
                 item.unit,
+                item.product_note,
+                item.order_note,
                 item.note,
                 item.reason,
             ]
@@ -225,7 +236,7 @@ def write_debug_workbook(
     skipped_ws = wb.create_sheet("跳过")
     _write_rows(
         skipped_ws,
-        ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "备注", "原因"],
+        ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "商品备注", "订单备注", "备注", "原因"],
         [
             [
                 item.source_file.name,
@@ -235,6 +246,8 @@ def write_debug_workbook(
                 item.product,
                 decimal_to_excel(item.quantity),
                 item.unit,
+                item.product_note,
+                item.order_note,
                 item.note,
                 item.reason,
             ]
@@ -297,6 +310,15 @@ def _find_header_in_workbook(
     raise ValueError(f"找不到订单明细表，必要字段：{required_labels}。已检查：{'；'.join(errors[:4])}")
 
 
+def _combine_notes(product_note: str, order_note: str) -> str:
+    parts = []
+    if product_note:
+        parts.append(f"商品备注：{product_note}")
+    if order_note:
+        parts.append(f"订单备注：{order_note}")
+    return "；".join(parts)
+
+
 def _row_dict(ws: Worksheet, row_number: int, columns: dict[str, int]) -> dict[str, Any]:
     return {key: ws.cell(row_number, col_number).value for key, col_number in columns.items()}
 
@@ -316,6 +338,18 @@ def _copy_cell(src, dst) -> None:
         dst.comment = copy(src.comment)
 
 
+def _purchase_template_column_map() -> list[tuple[int, int]]:
+    return [(col, col) for col in range(1, 8)] + [(8, 9)]
+
+
+def _purchase_header_style_source_col(output_col: int) -> int:
+    if output_col <= 7:
+        return output_col
+    if output_col == 8:
+        return 7
+    return 8
+
+
 def _apply_basic_format(ws: Worksheet, header_row: int, data_rows: int, headers: list[str]) -> None:
     for col_idx, header in enumerate(headers, start=1):
         ws.cell(header_row, col_idx, header)
@@ -327,7 +361,8 @@ def _apply_basic_format(ws: Worksheet, header_row: int, data_rows: int, headers:
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     if data_rows:
-        ws.auto_filter.ref = f"A{header_row}:H{header_row + data_rows}"
+        last_col = get_column_letter(len(headers))
+        ws.auto_filter.ref = f"A{header_row}:{last_col}{header_row + data_rows}"
     ws.freeze_panes = f"A{header_row + 1}"
 
 

@@ -34,6 +34,8 @@ class OrderLine:
     note: str
     source_file: Path
     supplier: str = ""
+    product_note: str = ""
+    order_note: str = ""
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,8 @@ class SourceLine:
     match_method: str = ""
     order_no: str = ""
     original_product: str = ""
+    product_note: str = ""
+    order_note: str = ""
 
 
 @dataclass
@@ -66,6 +70,8 @@ class PurchaseLine:
     agreement_price: Any = None
     source_rows: list[str] = field(default_factory=list)
     match_methods: set[str] = field(default_factory=set)
+    product_note: str = ""
+    order_note: str = ""
 
 
 @dataclass(frozen=True)
@@ -79,6 +85,8 @@ class UnmatchedLine:
     unit: str
     note: str
     reason: str
+    product_note: str = ""
+    order_note: str = ""
 
 
 @dataclass(frozen=True)
@@ -92,6 +100,8 @@ class SkippedLine:
     unit: str
     note: str
     reason: str
+    product_note: str = ""
+    order_note: str = ""
 
 
 @dataclass

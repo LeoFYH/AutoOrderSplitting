@@ -218,6 +218,8 @@ def split_orders(
                     agreement_price=item.agreement_price,
                     match_method="template",
                     original_product=item.product,
+                    product_note=item.note,
+                    order_note="",
                 )
             )
 
@@ -235,6 +237,8 @@ def split_orders(
                     unit=order.unit,
                     note=order.note,
                     reason=skip_reason,
+                    product_note=order.product_note,
+                    order_note=order.order_note,
                 )
             )
             continue
@@ -259,6 +263,8 @@ def split_orders(
                         match_method="order_supplier",
                         order_no=order.order_no,
                         original_product=order.product,
+                        product_note=order.product_note,
+                        order_note=order.order_note,
                     )
                 )
                 continue
@@ -273,6 +279,8 @@ def split_orders(
                     unit=order.unit,
                     note=order.note,
                     reason=match.reason,
+                    product_note=order.product_note,
+                    order_note=order.order_note,
                 )
             )
             continue
@@ -304,6 +312,8 @@ def split_orders(
                 match_method=match.method,
                 order_no=order.order_no,
                 original_product=order.product,
+                product_note=order.product_note,
+                order_note=order.order_note,
             )
         )
 
@@ -366,6 +376,8 @@ def _aggregate(source_lines: list[SourceLine], warnings: list[str]) -> list[Purc
                 agreement_price=line.agreement_price,
                 source_rows=[source_label],
                 match_methods={line.match_method} if line.match_method else set(),
+                product_note=line.product_note,
+                order_note=line.order_note,
             )
             continue
 
@@ -387,11 +399,13 @@ def _aggregate(source_lines: list[SourceLine], warnings: list[str]) -> list[Purc
         if line.note and target.note and target.note != line.note:
             warnings.append(
                 f"{line.supplier}/{line.owner}/{line.product} 时间/备注不一致："
-                f"使用后出现的「{line.note}」，原为「{target.note}」（{source_label}）"
+                f"已合并「{line.note}」，原为「{target.note}」（{source_label}）"
             )
-            target.note = line.note
+            target.note = _merge_note_values(target.note, line.note)
         elif line.note:
             target.note = line.note
+        target.product_note = _merge_note_values(target.product_note, line.product_note)
+        target.order_note = _merge_note_values(target.order_note, line.order_note)
 
         target.quantity += line.quantity
         target.source_rows.append(source_label)
@@ -417,3 +431,17 @@ def _same_price(left, right) -> bool:
         return Decimal(str(left).replace(",", "")) == Decimal(str(right).replace(",", ""))
     except (InvalidOperation, ValueError):
         return clean_text(left) == clean_text(right)
+
+
+def _merge_note_values(current: str, new_value: str) -> str:
+    current = clean_text(current)
+    new_value = clean_text(new_value)
+    if not new_value:
+        return current
+    if not current:
+        return new_value
+    parts = [part.strip() for part in current.split("；") if part.strip()]
+    for part in [part.strip() for part in new_value.split("；") if part.strip()]:
+        if part not in parts:
+            parts.append(part)
+    return "；".join(parts)

@@ -12,7 +12,7 @@ from auto_order_splitting.models import PurchaseLine
 
 
 class ExcelIoTests(unittest.TestCase):
-    def test_reads_template_and_orders_then_writes_eight_column_import(self):
+    def test_reads_template_and_orders_then_writes_purchase_import_with_separate_notes(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             template = tmp_path / "template.xlsx"
@@ -31,8 +31,8 @@ class ExcelIoTests(unittest.TestCase):
 
             wb = Workbook()
             ws = wb.active
-            ws.append(["订单号", "客户名称", "发货日期", "商品名称", "发货数量", "实际金额", "发货小计", "发货单位", "发货单价", "订单备注"])
-            ws.append(["DD1", "学校A", "2026-06-08", "紫菜", 2, 11, 11, "包", 5.5, "下午到"])
+            ws.append(["订单号", "客户名称", "发货日期", "商品名称", "发货数量", "实际金额", "发货小计", "发货单位", "发货单价", "商品备注", "订单备注"])
+            ws.append(["DD1", "学校A", "2026-06-08", "紫菜", 2, 11, 11, "包", 5.5, "不要辣", "下午到"])
             ws.append(["小计:", None, None, None, None, 11, 11, None, None, None])
             wb.save(orders)
 
@@ -41,17 +41,38 @@ class ExcelIoTests(unittest.TestCase):
             write_purchase_import(
                 template,
                 output,
-                [PurchaseLine("学校A", "供应商A", "紫菜", "包", Decimal("2"), 5.5, "下午到")],
+                [
+                    PurchaseLine(
+                        "学校A",
+                        "供应商A",
+                        "紫菜",
+                        "包",
+                        Decimal("2"),
+                        5.5,
+                        "商品备注：不要辣；订单备注：下午到",
+                        product_note="不要辣",
+                        order_note="下午到",
+                    )
+                ],
             )
 
             self.assertEqual(len(template_items), 1)
             self.assertEqual(len(order_lines), 1)
             self.assertEqual(order_lines[0].product, "紫菜")
+            self.assertEqual(order_lines[0].product_note, "不要辣")
+            self.assertEqual(order_lines[0].order_note, "下午到")
+            self.assertEqual(order_lines[0].note, "商品备注：不要辣；订单备注：下午到")
 
             written = load_workbook(output, data_only=True).active
-            self.assertEqual(written.max_column, 8)
+            self.assertEqual(written.max_column, 9)
+            self.assertEqual(written.cell(4, 7).value, "商品备注")
+            self.assertEqual(written.cell(4, 8).value, "订单备注")
+            self.assertEqual(written.cell(4, 9).value, "已设置采购协议价")
             self.assertEqual(written.cell(5, 1).value, "学校A")
             self.assertEqual(written.cell(5, 5).value, 2)
+            self.assertEqual(written.cell(5, 7).value, "不要辣")
+            self.assertEqual(written.cell(5, 8).value, "下午到")
+            self.assertIsNone(written.cell(1, 9).value)
 
     def test_writes_debug_workbook_with_four_tabs(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -79,7 +100,7 @@ class ExcelIoTests(unittest.TestCase):
             pivot.append(["求和项:下单数量", "列标签"])
             detail = wb.create_sheet("订单明细导出")
             detail.append(["订单号", "客户名称", "订单时间", "发货日期", "商品名称", "下单数量", "下单单位", "商品备注", "下单单价", "订单备注", "默认供应商"])
-            detail.append(["DD1", "学校A", "2026-06-06", "2026-06-08", "紫菜", 3, "包", "", 5.5, "下午到", "订单供应商"])
+            detail.append(["DD1", "学校A", "2026-06-06", "2026-06-08", "紫菜", 3, "包", "不要辣", 5.5, "下午到", "订单供应商"])
             wb.save(orders)
 
             order_lines = read_orders([orders])
@@ -89,6 +110,8 @@ class ExcelIoTests(unittest.TestCase):
             self.assertEqual(order_lines[0].unit, "包")
             self.assertEqual(order_lines[0].order_price, 5.5)
             self.assertEqual(order_lines[0].supplier, "订单供应商")
+            self.assertEqual(order_lines[0].product_note, "不要辣")
+            self.assertEqual(order_lines[0].order_note, "下午到")
 
 
 if __name__ == "__main__":

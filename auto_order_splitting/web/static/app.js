@@ -343,15 +343,15 @@ function renderResultTable() {
 
   if (tab === "lines") {
     renderSimpleTable(
-      ["供应商", "学校", "商品", "单位", "数量", "单价", "备注"],
-      (result.lines || []).map((row) => [row.supplier, row.owner, row.product, row.unit, row.quantity, row.price, row.note]),
+      ["供应商", "学校", "商品", "单位", "数量", "单价", "商品备注", "订单备注", "备注"],
+      (result.lines || []).map((row) => [row.supplier, row.owner, row.product, row.unit, row.quantity, row.price, row.productNote, row.orderNote, row.note]),
     );
     return;
   }
   if (tab === "unmatched") {
     renderSimpleTable(
-      ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "备注", "原因"],
-      (result.unmatched || []).map((row) => [row.file, row.row, row.orderNo, row.customer, row.product, row.quantity, row.unit, row.note, row.reason]),
+      ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "商品备注", "订单备注", "备注", "原因"],
+      (result.unmatched || []).map((row) => [row.file, row.row, row.orderNo, row.customer, row.product, row.quantity, row.unit, row.productNote, row.orderNote, row.note, row.reason]),
     );
     return;
   }
@@ -360,8 +360,8 @@ function renderResultTable() {
     return;
   }
   renderSimpleTable(
-    ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "备注", "原因"],
-    (result.skipped || []).map((row) => [row.file, row.row, row.orderNo, row.customer, row.product, row.quantity, row.unit, row.note, row.reason]),
+    ["文件", "行", "订单号", "学校", "商品", "数量", "单位", "商品备注", "订单备注", "备注", "原因"],
+    (result.skipped || []).map((row) => [row.file, row.row, row.orderNo, row.customer, row.product, row.quantity, row.unit, row.productNote, row.orderNote, row.note, row.reason]),
   );
 }
 

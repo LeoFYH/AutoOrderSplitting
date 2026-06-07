@@ -39,7 +39,7 @@ class SplitterTests(unittest.TestCase):
 
         self.assertEqual(len(result.lines), 1)
         self.assertEqual(result.lines[0].quantity, Decimal("5"))
-        self.assertEqual(result.lines[0].note, "下午到")
+        self.assertEqual(result.lines[0].note, "上午到；下午到")
         self.assertEqual(len(result.warnings), 1)
 
     def test_reports_unmatched_without_dropping_silently(self):
