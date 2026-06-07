@@ -69,10 +69,6 @@ input[type="search"] {
   padding: 7px 10px;
 }
 
-input[type="file"] {
-  width: 100%;
-}
-
 .app-header {
   height: 64px;
   padding: 10px 22px;
@@ -261,8 +257,53 @@ td input:focus {
   background: #fffaf1;
 }
 
-.file-drop span {
+.file-drop > span {
   font-weight: 700;
+}
+
+.file-picker {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-picker input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.file-button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fffaf1;
+  color: var(--text);
+  padding: 0 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.file-picker:hover .file-button,
+.file-picker:focus-within .file-button {
+  border-color: var(--primary);
+}
+
+.file-name {
+  min-width: 0;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-list {

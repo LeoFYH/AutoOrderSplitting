@@ -12,6 +12,7 @@ const el = {
   templateStatus: document.querySelector("#templateStatus"),
   templateForm: document.querySelector("#templateForm"),
   templateFile: document.querySelector("#templateFile"),
+  templateFileName: document.querySelector("#templateFileName"),
   templateSearch: document.querySelector("#templateSearch"),
   templateCount: document.querySelector("#templateCount"),
   templateTableBody: document.querySelector("#templateTable tbody"),
@@ -19,6 +20,7 @@ const el = {
   saveTemplate: document.querySelector("#saveTemplate"),
   orderForm: document.querySelector("#orderForm"),
   orderFiles: document.querySelector("#orderFiles"),
+  orderFileSummary: document.querySelector("#orderFileSummary"),
   orderFileList: document.querySelector("#orderFileList"),
   skipKeywordList: document.querySelector("#skipKeywordList"),
   addSkipKeyword: document.querySelector("#addSkipKeyword"),
@@ -43,6 +45,7 @@ function init() {
 
 function bindEvents() {
   el.templateForm.addEventListener("submit", uploadTemplate);
+  el.templateFile.addEventListener("change", renderTemplateFileName);
   el.templateSearch.addEventListener("input", renderTemplateTable);
   el.addTemplateRow.addEventListener("click", addTemplateRow);
   el.saveTemplate.addEventListener("click", saveTemplate);
@@ -199,12 +202,19 @@ function updateTemplateStatus() {
     : "未上传模板";
 }
 
+function renderTemplateFileName() {
+  const file = el.templateFile.files[0];
+  el.templateFileName.textContent = file ? file.name : "未选择模板";
+}
+
 function renderOrderFiles() {
   const files = Array.from(el.orderFiles.files || []);
   if (!files.length) {
+    el.orderFileSummary.textContent = "未选择订单";
     el.orderFileList.textContent = "未选择订单";
     return;
   }
+  el.orderFileSummary.textContent = files.length === 1 ? files[0].name : `已选择 ${files.length} 个订单文件`;
   el.orderFileList.innerHTML = files.map((file) => `<div>${escapeHtml(file.name)}</div>`).join("");
 }
 

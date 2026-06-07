@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>自动拆单工具</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260606c" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20260606d" />
   </head>
   <body>
     <header class="app-header">
@@ -28,7 +28,11 @@
         </div>
 
         <form id="templateForm" class="upload-row">
-          <input id="templateFile" name="template" type="file" accept=".xlsx" />
+          <label class="file-picker">
+            <input id="templateFile" name="template" type="file" accept=".xlsx" />
+            <span class="file-button">选择模板文件</span>
+            <span id="templateFileName" class="file-name">未选择模板</span>
+          </label>
           <button type="submit">上传模板</button>
         </form>
 
@@ -64,10 +68,14 @@
         </div>
 
         <form id="orderForm" class="order-form">
-          <label class="file-drop">
+          <div class="file-drop">
             <span>批量导入订单</span>
-            <input id="orderFiles" name="orders" type="file" accept=".xlsx" multiple />
-          </label>
+            <label class="file-picker">
+              <input id="orderFiles" name="orders" type="file" accept=".xlsx" multiple />
+              <span class="file-button">选择订单文件</span>
+              <span id="orderFileSummary" class="file-name">未选择订单</span>
+            </label>
+          </div>
 
           <div id="orderFileList" class="file-list">未选择订单</div>
 
@@ -120,6 +128,6 @@
       </div>
     </section>
 
-    <script src="/assets/app.js?v=20260606c"></script>
+    <script src="/assets/app.js?v=20260606d"></script>
   </body>
 </html>
