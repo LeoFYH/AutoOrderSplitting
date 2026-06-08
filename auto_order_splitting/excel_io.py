@@ -19,18 +19,6 @@ from .models import (
 from .normalization import clean_text, decimal_to_excel, normalize_header, to_decimal
 
 
-TEMPLATE_OUTPUT_HEADERS = [
-    "负责人",
-    "采购员/供应商名称",
-    "*商品名称",
-    "*商品单位",
-    "*采购数量",
-    "*采购单价",
-    "商品备注",
-    "订单备注",
-    "已设置采购协议价",
-]
-
 TEMPLATE_ALIASES = {
     "owner": {"负责人"},
     "supplier": {"采购员/供应商名称", "供应商名称"},
@@ -39,6 +27,7 @@ TEMPLATE_ALIASES = {
     "quantity": {"采购数量", "计划采购量"},
     "price": {"采购单价", "单价"},
     "note": {"商品备注", "备注"},
+    "order_note": {"订单备注"},
     "agreement_price": {"已设置采购协议价", "采购协议价"},
 }
 
@@ -137,41 +126,24 @@ def read_orders(paths: Iterable[str | Path]) -> list[OrderLine]:
 def write_purchase_import(template_path: str | Path, output_path: str | Path, lines: list[PurchaseLine]) -> None:
     template_path = Path(template_path)
     output_path = Path(output_path)
-    source_wb = load_workbook(template_path)
-    source_ws = source_wb.active
-    header_row, _ = _find_header(source_ws, TEMPLATE_ALIASES, required={"supplier", "product", "price"})
-
-    wb = Workbook()
+    wb = load_workbook(template_path)
     ws = wb.active
-    ws.title = source_ws.title[:31]
-
-    for row in range(1, header_row + 1):
-        for source_col, output_col in _purchase_template_column_map():
-            _copy_cell(source_ws.cell(row, source_col), ws.cell(row, output_col))
-
-    for idx, header in enumerate(TEMPLATE_OUTPUT_HEADERS, start=1):
-        cell = ws.cell(header_row, idx, header)
-        source_col = _purchase_header_style_source_col(idx)
-        if source_ws.cell(header_row, source_col).has_style:
-            _copy_cell(source_ws.cell(header_row, source_col), cell)
-            cell.value = header
+    header_row, columns = _find_header(ws, TEMPLATE_ALIASES, required={"supplier", "product", "price"})
+    output_max_col = max(ws.max_column, _template_output_max_column(ws, header_row, columns))
+    template_data_row = header_row + 1
+    existing_max_row = ws.max_row
+    output_last_row = header_row + len(lines)
 
     for row_idx, line in enumerate(lines, start=header_row + 1):
-        values = [
-            line.owner,
-            line.supplier,
-            line.product,
-            line.unit,
-            decimal_to_excel(line.quantity),
-            line.price,
-            line.product_note,
-            line.order_note,
-            line.agreement_price,
-        ]
-        for col_idx, value in enumerate(values, start=1):
-            ws.cell(row_idx, col_idx, value)
+        if row_idx > existing_max_row:
+            _copy_row_format(ws, template_data_row, row_idx, output_max_col)
+        values = _purchase_line_values(line)
+        for key, col_idx in columns.items():
+            if col_idx <= output_max_col and key in values:
+                ws.cell(row_idx, col_idx, values[key])
 
-    _apply_basic_format(ws, header_row, len(lines), TEMPLATE_OUTPUT_HEADERS)
+    _clear_data_values(ws, output_last_row + 1, existing_max_row, output_max_col)
+    _apply_output_filter(ws, header_row, len(lines), output_max_col)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
 
@@ -338,32 +310,57 @@ def _copy_cell(src, dst) -> None:
         dst.comment = copy(src.comment)
 
 
-def _purchase_template_column_map() -> list[tuple[int, int]]:
-    return [(col, col) for col in range(1, 8)] + [(8, 9)]
+def _copy_cell_format(src, dst) -> None:
+    if src.has_style:
+        dst.font = copy(src.font)
+        dst.fill = copy(src.fill)
+        dst.border = copy(src.border)
+        dst.alignment = copy(src.alignment)
+        dst.number_format = src.number_format
+        dst.protection = copy(src.protection)
 
 
-def _purchase_header_style_source_col(output_col: int) -> int:
-    if output_col <= 7:
-        return output_col
-    if output_col == 8:
-        return 7
-    return 8
+def _copy_row_format(ws: Worksheet, source_row: int, target_row: int, max_col: int) -> None:
+    ws.row_dimensions[target_row].height = ws.row_dimensions[source_row].height
+    for col_idx in range(1, max_col + 1):
+        _copy_cell_format(ws.cell(source_row, col_idx), ws.cell(target_row, col_idx))
 
 
-def _apply_basic_format(ws: Worksheet, header_row: int, data_rows: int, headers: list[str]) -> None:
-    for col_idx, header in enumerate(headers, start=1):
-        ws.cell(header_row, col_idx, header)
-        ws.column_dimensions[get_column_letter(col_idx)].width = min(max(len(header) + 4, 12), 26)
+def _clear_data_values(ws: Worksheet, start_row: int, end_row: int, max_col: int) -> None:
+    if start_row > end_row:
+        return
+    for row_idx in range(start_row, end_row + 1):
+        for col_idx in range(1, max_col + 1):
+            ws.cell(row_idx, col_idx).value = None
 
-    for cell in ws[header_row]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="366092")
-        cell.alignment = Alignment(horizontal="center", vertical="center")
 
+def _template_output_max_column(ws: Worksheet, header_row: int, columns: dict[str, int]) -> int:
+    header_cols = [
+        cell.column
+        for cell in ws[header_row]
+        if clean_text(cell.value)
+    ]
+    return max(header_cols + list(columns.values()))
+
+
+def _purchase_line_values(line: PurchaseLine) -> dict[str, Any]:
+    return {
+        "owner": line.owner,
+        "supplier": line.supplier,
+        "product": line.product,
+        "unit": line.unit,
+        "quantity": decimal_to_excel(line.quantity),
+        "price": line.price,
+        "note": line.note,
+        "order_note": line.order_note,
+        "agreement_price": line.agreement_price,
+    }
+
+
+def _apply_output_filter(ws: Worksheet, header_row: int, data_rows: int, max_col: int) -> None:
     if data_rows:
-        last_col = get_column_letter(len(headers))
+        last_col = get_column_letter(max_col)
         ws.auto_filter.ref = f"A{header_row}:{last_col}{header_row + data_rows}"
-    ws.freeze_panes = f"A{header_row + 1}"
 
 
 def _write_rows(ws: Worksheet, headers: list[str], rows: list[list[Any]]) -> None:

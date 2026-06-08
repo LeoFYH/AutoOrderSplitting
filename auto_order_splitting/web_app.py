@@ -99,12 +99,6 @@ def create_app() -> Flask:
 
     @app.post("/api/process")
     def process_orders():
-        template_items = load_template_items()
-        if not template_items:
-            return jsonify({"error": "请先上传模板"}), 400
-        if not CURRENT_TEMPLATE.exists():
-            return jsonify({"error": "请重新上传模板文件"}), 400
-
         files = request.files.getlist("orders")
         if not files:
             return jsonify({"error": "请选择至少一个订单文件"}), 400
@@ -113,6 +107,20 @@ def create_app() -> Flask:
         run_dir = RUNS_DIR / run_id
         orders_dir = run_dir / "orders"
         orders_dir.mkdir(parents=True, exist_ok=True)
+
+        template_file = request.files.get("template")
+        if template_file is not None and template_file.filename:
+            template_suffix = Path(template_file.filename).suffix or ".xlsx"
+            template_path = run_dir / f"采购总模板{template_suffix}"
+            template_file.save(template_path)
+            template_items = read_template(template_path)
+        else:
+            template_items = load_template_items()
+            if not template_items:
+                return jsonify({"error": "请选择采购总模板"}), 400
+            if not CURRENT_TEMPLATE.exists():
+                return jsonify({"error": "请重新选择采购总模板"}), 400
+            template_path = CURRENT_TEMPLATE
 
         order_paths: list[Path] = []
         for idx, file in enumerate(files, start=1):
@@ -125,7 +133,6 @@ def create_app() -> Flask:
         if not order_paths:
             return jsonify({"error": "没有可读取的订单文件"}), 400
 
-        include_template_rows = _bool_form("includeTemplateRows", default=False)
         fuzzy_threshold = float(request.form.get("fuzzyThreshold") or 0.88)
         skip_text = request.form.get("skipKeywords") or "营养餐"
         skip_keywords = [item.strip() for item in skip_text.replace("，", ",").split(",") if item.strip()]
@@ -134,7 +141,7 @@ def create_app() -> Flask:
         result = split_orders(
             template_items,
             order_lines,
-            include_template_rows=include_template_rows,
+            include_template_rows=False,
             skip_keywords=skip_keywords,
             fuzzy_threshold=fuzzy_threshold,
         )
@@ -145,7 +152,7 @@ def create_app() -> Flask:
         has_purchase = not result.unmatched
         if has_purchase:
             purchase_path = run_dir / "采购单.xlsx"
-            write_purchase_import(CURRENT_TEMPLATE, purchase_path, result.lines)
+            write_purchase_import(template_path, purchase_path, result.lines)
 
         return jsonify(result_payload(result, run_id, has_purchase=has_purchase))
 

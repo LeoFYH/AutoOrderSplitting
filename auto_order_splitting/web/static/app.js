@@ -25,7 +25,6 @@ const el = {
   skipKeywordList: document.querySelector("#skipKeywordList"),
   addSkipKeyword: document.querySelector("#addSkipKeyword"),
   fuzzyThreshold: document.querySelector("#fuzzyThreshold"),
-  includeTemplateRows: document.querySelector("#includeTemplateRows"),
   message: document.querySelector("#message"),
   downloadLinks: document.querySelector("#downloadLinks"),
   debugExportLink: document.querySelector("#debugExportLink"),
@@ -204,7 +203,7 @@ function updateTemplateStatus() {
 
 function renderTemplateFileName() {
   const file = el.templateFile.files[0];
-  el.templateFileName.textContent = file ? file.name : "未选择模板";
+  el.templateFileName.textContent = file ? file.name : "未选择采购总模板";
 }
 
 function renderOrderFiles() {
@@ -266,8 +265,9 @@ function collectSkipKeywords(options = {}) {
 async function processOrders(event) {
   event.preventDefault();
   collectTemplateItems();
-  if (!state.templateItems.length) {
-    setMessage("请先上传模板", true);
+  const templateFile = el.templateFile.files[0];
+  if (!templateFile && !state.templateItems.length) {
+    setMessage("请选择采购总模板", true);
     return;
   }
   if (!el.orderFiles.files.length) {
@@ -275,18 +275,22 @@ async function processOrders(event) {
     return;
   }
 
-  await saveTemplate();
-  if (el.message.classList.contains("error")) {
-    return;
+  if (!templateFile) {
+    await saveTemplate();
+    if (el.message.classList.contains("error")) {
+      return;
+    }
   }
 
   const form = new FormData();
+  if (templateFile) {
+    form.append("template", templateFile);
+  }
   Array.from(el.orderFiles.files).forEach((file) => form.append("orders", file));
   form.append("skipKeywords", collectSkipKeywords().join(","));
   form.append("fuzzyThreshold", el.fuzzyThreshold.value);
-  form.append("includeTemplateRows", el.includeTemplateRows.checked ? "true" : "false");
 
-  setMessage("正在匹配订单...");
+  setMessage("正在合并订单并匹配模板...");
   el.downloadLinks.innerHTML = "";
   try {
     const data = await apiJson("/api/process", { method: "POST", body: form });

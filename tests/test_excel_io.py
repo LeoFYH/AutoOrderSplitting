@@ -12,7 +12,7 @@ from auto_order_splitting.models import PurchaseLine
 
 
 class ExcelIoTests(unittest.TestCase):
-    def test_reads_template_and_orders_then_writes_purchase_import_with_separate_notes(self):
+    def test_reads_template_and_orders_then_writes_purchase_import_in_template_format(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             template = tmp_path / "template.xlsx"
@@ -26,7 +26,12 @@ class ExcelIoTests(unittest.TestCase):
             ws.append(["单据备注"])
             ws.append(["负责人", "采购员/供应商名称", "*商品名称", "*商品单位", "*采购数量", "*采购单价", "商品备注", "已设置采购协议价"])
             ws.append(["营养餐", "供应商A", "紫菜", "包", 7, 5.5, "上午到", None])
-            ws.cell(1, 9, "ghost")
+            ws.merge_cells("A1:I1")
+            ws.freeze_panes = "A20"
+            ws.auto_filter.ref = "A4:I5"
+            ws.row_dimensions[1].height = 25
+            ws.row_dimensions[4].height = 25
+            ws.column_dimensions["I"].width = 9
             wb.save(template)
 
             wb = Workbook()
@@ -49,7 +54,7 @@ class ExcelIoTests(unittest.TestCase):
                         "包",
                         Decimal("2"),
                         5.5,
-                        "商品备注：不要辣；订单备注：下午到",
+                        "模板送货时间",
                         product_note="不要辣",
                         order_note="下午到",
                     )
@@ -65,14 +70,17 @@ class ExcelIoTests(unittest.TestCase):
 
             written = load_workbook(output, data_only=True).active
             self.assertEqual(written.max_column, 9)
+            self.assertIn("A1:I1", [str(item) for item in written.merged_cells.ranges])
+            self.assertEqual(written.freeze_panes, "A20")
+            self.assertEqual(written.row_dimensions[1].height, 25)
+            self.assertEqual(written.row_dimensions[4].height, 25)
+            self.assertEqual(written.column_dimensions["I"].width, 9)
             self.assertEqual(written.cell(4, 7).value, "商品备注")
-            self.assertEqual(written.cell(4, 8).value, "订单备注")
-            self.assertEqual(written.cell(4, 9).value, "已设置采购协议价")
+            self.assertEqual(written.cell(4, 8).value, "已设置采购协议价")
             self.assertEqual(written.cell(5, 1).value, "学校A")
             self.assertEqual(written.cell(5, 5).value, 2)
-            self.assertEqual(written.cell(5, 7).value, "不要辣")
-            self.assertEqual(written.cell(5, 8).value, "下午到")
-            self.assertIsNone(written.cell(1, 9).value)
+            self.assertEqual(written.cell(5, 7).value, "模板送货时间")
+            self.assertEqual(written.auto_filter.ref, "A4:I5")
 
     def test_writes_debug_workbook_with_four_tabs(self):
         with tempfile.TemporaryDirectory() as tmp:

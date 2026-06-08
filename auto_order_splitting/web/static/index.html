@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>自动拆单工具</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260606d" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20260608a" />
   </head>
   <body>
     <header class="app-header">
@@ -30,8 +30,8 @@
         <form id="templateForm" class="upload-row">
           <label class="file-picker">
             <input id="templateFile" name="template" type="file" accept=".xlsx" />
-            <span class="file-button">选择模板文件</span>
-            <span id="templateFileName" class="file-name">未选择模板</span>
+              <span class="file-button">选择采购总模板</span>
+              <span id="templateFileName" class="file-name">未选择采购总模板</span>
           </label>
           <button type="submit">上传模板</button>
         </form>
@@ -91,10 +91,6 @@
             </label>
           </div>
 
-          <label class="check-row">
-            <input id="includeTemplateRows" name="includeTemplateRows" type="checkbox" />
-            <span>输出时带入模板已有数量行</span>
-          </label>
         </form>
 
         <div class="run-state">
@@ -128,6 +124,6 @@
       </div>
     </section>
 
-    <script src="/assets/app.js?v=20260606d"></script>
+    <script src="/assets/app.js?v=20260608a"></script>
   </body>
 </html>

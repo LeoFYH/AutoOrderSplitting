@@ -307,7 +307,7 @@ def split_orders(
                 unit=order.unit or item.unit,
                 quantity=order.quantity,
                 price=item.price,
-                note=order.note or item.note,
+                note=item.note,
                 agreement_price=item.agreement_price,
                 match_method=match.method,
                 order_no=order.order_no,

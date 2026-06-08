@@ -24,7 +24,7 @@ class SplitterTests(unittest.TestCase):
         self.assertEqual(result.lines[0].owner, "学校A")
         self.assertEqual(result.lines[0].quantity, Decimal("2"))
         self.assertEqual(result.lines[0].price, 5)
-        self.assertEqual(result.lines[0].note, "下午到")
+        self.assertEqual(result.lines[0].note, "上午到")
 
     def test_aggregates_by_supplier_owner_product(self):
         items = [
@@ -39,8 +39,8 @@ class SplitterTests(unittest.TestCase):
 
         self.assertEqual(len(result.lines), 1)
         self.assertEqual(result.lines[0].quantity, Decimal("5"))
-        self.assertEqual(result.lines[0].note, "上午到；下午到")
-        self.assertEqual(len(result.warnings), 1)
+        self.assertEqual(result.lines[0].note, "上午到")
+        self.assertEqual(len(result.warnings), 0)
 
     def test_reports_unmatched_without_dropping_silently(self):
         result = split_orders(
