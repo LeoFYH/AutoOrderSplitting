@@ -26,6 +26,8 @@ class ExcelIoTests(unittest.TestCase):
             ws.append(["单据备注"])
             ws.append(["负责人", "采购员/供应商名称", "*商品名称", "*商品单位", "*采购数量", "*采购单价", "商品备注", "已设置采购协议价"])
             ws.append(["营养餐", "供应商A", "紫菜", "包", 7, 5.5, "上午到", None])
+            ws.append(["旧学校", "旧供应商", "旧商品", "斤", 999, 1, "旧备注", None])
+            ws.append(["旧学校2", "旧供应商2", "旧商品2", "斤", 888, 1, "旧备注2", None])
             ws.merge_cells("A1:I1")
             ws.freeze_panes = "A20"
             ws.auto_filter.ref = "A4:I5"
@@ -54,24 +56,25 @@ class ExcelIoTests(unittest.TestCase):
                         "包",
                         Decimal("2"),
                         5.5,
-                        "模板送货时间",
+                        "商品备注：燕麦10件，纯牛奶10件；订单备注：号上午8：30-10点前送恒利仓库",
                         product_note="不要辣",
                         order_note="下午到",
                     )
                 ],
             )
 
-            self.assertEqual(len(template_items), 1)
+            self.assertEqual(len(template_items), 3)
             self.assertEqual(len(order_lines), 1)
             self.assertEqual(order_lines[0].product, "紫菜")
             self.assertEqual(order_lines[0].product_note, "不要辣")
             self.assertEqual(order_lines[0].order_note, "下午到")
-            self.assertEqual(order_lines[0].note, "下午到")
+            self.assertEqual(order_lines[0].note, "不要辣；下午到")
 
             written = load_workbook(output, data_only=True).active
             self.assertEqual(written.max_column, 9)
+            self.assertEqual(written.max_row, 5)
             self.assertIn("A1:I1", [str(item) for item in written.merged_cells.ranges])
-            self.assertEqual(written.freeze_panes, "A20")
+            self.assertEqual(written.freeze_panes, "A5")
             self.assertEqual(written.row_dimensions[1].height, 25)
             self.assertEqual(written.row_dimensions[4].height, 25)
             self.assertEqual(written.column_dimensions["I"].width, 9)
@@ -79,7 +82,8 @@ class ExcelIoTests(unittest.TestCase):
             self.assertEqual(written.cell(4, 8).value, "已设置采购协议价")
             self.assertEqual(written.cell(5, 1).value, "学校A")
             self.assertEqual(written.cell(5, 5).value, 2)
-            self.assertEqual(written.cell(5, 7).value, "模板送货时间")
+            self.assertEqual(written.cell(5, 7).value, "燕麦10件，纯牛奶10件；号上午8：30-10点前送恒利仓库")
+            self.assertIsNone(written.cell(6, 1).value)
             self.assertEqual(written.auto_filter.ref, "A4:I5")
 
     def test_writes_debug_workbook_with_four_tabs(self):
@@ -120,9 +124,9 @@ class ExcelIoTests(unittest.TestCase):
             self.assertEqual(order_lines[0].supplier, "订单供应商")
             self.assertEqual(order_lines[0].product_note, "不要辣")
             self.assertEqual(order_lines[0].order_note, "下午到")
-            self.assertEqual(order_lines[0].note, "下午到")
+            self.assertEqual(order_lines[0].note, "不要辣；下午到")
 
-    def test_order_output_note_keeps_delivery_time_only(self):
+    def test_order_output_note_only_removes_labels(self):
         with tempfile.TemporaryDirectory() as tmp:
             orders = Path(tmp) / "orders.xlsx"
 
@@ -132,13 +136,15 @@ class ExcelIoTests(unittest.TestCase):
             ws.append(["DD1", "学校A", "紫菜", 3, "包", "紫菜3包；不要辣", "订单备注：下午4点送到"])
             ws.append(["DD2", "学校A", "海带", 2, "斤", "商品备注：上午送到；海带2斤", ""])
             ws.append(["DD3", "学校A", "豆腐", 5, "斤", "豆腐5斤", ""])
+            ws.append(["DD4", "学校A", "牛奶", 10, "件", "商品备注：燕麦10件，纯牛奶10件；订单备注：号上午8：30-10点前送恒利仓库", ""])
             wb.save(orders)
 
             order_lines = read_orders([orders])
 
-            self.assertEqual(order_lines[0].note, "下午4点送到")
-            self.assertEqual(order_lines[1].note, "上午送到")
-            self.assertEqual(order_lines[2].note, "")
+            self.assertEqual(order_lines[0].note, "紫菜3包；不要辣；下午4点送到")
+            self.assertEqual(order_lines[1].note, "上午送到；海带2斤")
+            self.assertEqual(order_lines[2].note, "豆腐5斤")
+            self.assertEqual(order_lines[3].note, "燕麦10件，纯牛奶10件；号上午8：30-10点前送恒利仓库")
 
 
 if __name__ == "__main__":

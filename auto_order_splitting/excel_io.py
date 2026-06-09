@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from copy import copy
 from pathlib import Path
-import re
 from typing import Any, Iterable
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.views import Selection
 from openpyxl.worksheet.worksheet import Worksheet
 
 from .models import (
@@ -47,10 +47,7 @@ ORDER_ALIASES = {
     "supplier": {"默认供应商", "供应商", "供应商名称"},
 }
 
-NOTE_PART_SEPARATOR_RE = re.compile(r"[;；\n\r]+")
-DELIVERY_TIME_RE = re.compile(
-    r"(配送|送货|送|到|点|上午|下午|早上|中午|晚上|凌晨|[0-9０-９]+[号日]|[0-9０-９]+[:：][0-9０-９]{2})"
-)
+NOTE_LABEL_PREFIXES = ("商品备注：", "商品备注:", "订单备注：", "订单备注:")
 
 
 def read_template(path: str | Path) -> list[TemplateItem]:
@@ -148,8 +145,9 @@ def write_purchase_import(template_path: str | Path, output_path: str | Path, li
             if col_idx <= output_max_col and key in values:
                 ws.cell(row_idx, col_idx, values[key])
 
-    _clear_data_values(ws, output_last_row + 1, existing_max_row, output_max_col)
+    _delete_extra_data_rows(ws, output_last_row + 1, existing_max_row)
     _apply_output_filter(ws, header_row, len(lines), output_max_col)
+    _reset_output_view(ws, header_row)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_path)
 
@@ -289,26 +287,39 @@ def _find_header_in_workbook(
 
 
 def _order_output_note(product_note: str, order_note: str) -> str:
-    for value in (order_note, product_note):
-        text = _strip_note_label(value)
-        time_note = _delivery_time_note(text)
-        if time_note:
-            return time_note
-    return ""
+    return _merge_output_notes(product_note, order_note)
+
+
+def _merge_output_notes(*values: str) -> str:
+    parts: list[str] = []
+    for value in values:
+        for part in _clean_note_parts(value):
+            if part not in parts:
+                parts.append(part)
+    return "；".join(parts)
+
+
+def _clean_output_note(value: str) -> str:
+    return _merge_output_notes(value)
+
+
+def _clean_note_parts(value: str) -> list[str]:
+    text = clean_text(value)
+    if not text:
+        return []
+    return [
+        _strip_note_label(part)
+        for part in text.replace("；", ";").replace("\n", ";").replace("\r", ";").split(";")
+        if _strip_note_label(part)
+    ]
 
 
 def _strip_note_label(value: str) -> str:
     text = clean_text(value)
-    for prefix in ("商品备注：", "商品备注:", "订单备注：", "订单备注:"):
+    for prefix in NOTE_LABEL_PREFIXES:
         if text.startswith(prefix):
             return clean_text(text[len(prefix) :])
     return text
-
-
-def _delivery_time_note(value: str) -> str:
-    parts = [_strip_note_label(part) for part in NOTE_PART_SEPARATOR_RE.split(clean_text(value))]
-    time_parts = [part for part in parts if DELIVERY_TIME_RE.search(part)]
-    return "；".join(time_parts)
 
 
 def _row_dict(ws: Worksheet, row_number: int, columns: dict[str, int]) -> dict[str, Any]:
@@ -346,12 +357,14 @@ def _copy_row_format(ws: Worksheet, source_row: int, target_row: int, max_col: i
         _copy_cell_format(ws.cell(source_row, col_idx), ws.cell(target_row, col_idx))
 
 
-def _clear_data_values(ws: Worksheet, start_row: int, end_row: int, max_col: int) -> None:
-    if start_row > end_row:
-        return
-    for row_idx in range(start_row, end_row + 1):
-        for col_idx in range(1, max_col + 1):
-            ws.cell(row_idx, col_idx).value = None
+def _delete_extra_data_rows(ws: Worksheet, start_row: int, end_row: int) -> None:
+    if start_row <= end_row:
+        ws.delete_rows(start_row, end_row - start_row + 1)
+
+
+def _reset_output_view(ws: Worksheet, header_row: int) -> None:
+    ws.freeze_panes = f"A{header_row + 1}"
+    ws.sheet_view.selection = [Selection(activeCell="A1", sqref="A1")]
 
 
 def _template_output_max_column(ws: Worksheet, header_row: int, columns: dict[str, int]) -> int:
@@ -371,8 +384,8 @@ def _purchase_line_values(line: PurchaseLine) -> dict[str, Any]:
         "unit": line.unit,
         "quantity": decimal_to_excel(line.quantity),
         "price": line.price,
-        "note": line.note,
-        "order_note": line.order_note,
+        "note": _clean_output_note(line.note),
+        "order_note": _clean_output_note(line.order_note),
         "agreement_price": line.agreement_price,
     }
 
