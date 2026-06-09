@@ -66,7 +66,7 @@ class ExcelIoTests(unittest.TestCase):
             self.assertEqual(order_lines[0].product, "紫菜")
             self.assertEqual(order_lines[0].product_note, "不要辣")
             self.assertEqual(order_lines[0].order_note, "下午到")
-            self.assertEqual(order_lines[0].note, "商品备注：不要辣；订单备注：下午到")
+            self.assertEqual(order_lines[0].note, "下午到")
 
             written = load_workbook(output, data_only=True).active
             self.assertEqual(written.max_column, 9)
@@ -120,6 +120,25 @@ class ExcelIoTests(unittest.TestCase):
             self.assertEqual(order_lines[0].supplier, "订单供应商")
             self.assertEqual(order_lines[0].product_note, "不要辣")
             self.assertEqual(order_lines[0].order_note, "下午到")
+            self.assertEqual(order_lines[0].note, "下午到")
+
+    def test_order_output_note_keeps_delivery_time_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            orders = Path(tmp) / "orders.xlsx"
+
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["订单号", "客户名称", "商品名称", "下单数量", "下单单位", "商品备注", "订单备注"])
+            ws.append(["DD1", "学校A", "紫菜", 3, "包", "紫菜3包；不要辣", "订单备注：下午4点送到"])
+            ws.append(["DD2", "学校A", "海带", 2, "斤", "商品备注：上午送到；海带2斤", ""])
+            ws.append(["DD3", "学校A", "豆腐", 5, "斤", "豆腐5斤", ""])
+            wb.save(orders)
+
+            order_lines = read_orders([orders])
+
+            self.assertEqual(order_lines[0].note, "下午4点送到")
+            self.assertEqual(order_lines[1].note, "上午送到")
+            self.assertEqual(order_lines[2].note, "")
 
 
 if __name__ == "__main__":

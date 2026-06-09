@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import copy
 from pathlib import Path
+import re
 from typing import Any, Iterable
 
 from openpyxl import Workbook, load_workbook
@@ -45,6 +46,11 @@ ORDER_ALIASES = {
     "order_note": {"订单备注", "备注"},
     "supplier": {"默认供应商", "供应商", "供应商名称"},
 }
+
+NOTE_PART_SEPARATOR_RE = re.compile(r"[;；\n\r]+")
+DELIVERY_TIME_RE = re.compile(
+    r"(配送|送货|送|到|点|上午|下午|早上|中午|晚上|凌晨|[0-9０-９]+[号日]|[0-9０-９]+[:：][0-9０-９]{2})"
+)
 
 
 def read_template(path: str | Path) -> list[TemplateItem]:
@@ -113,7 +119,7 @@ def read_orders(paths: Iterable[str | Path]) -> list[OrderLine]:
                     subtotal=row.get("subtotal"),
                     unit=clean_text(row.get("unit")),
                     order_price=row.get("order_price"),
-                    note=_combine_notes(product_note, order_note),
+                    note=_order_output_note(product_note, order_note),
                     source_file=path,
                     supplier=clean_text(row.get("supplier")),
                     product_note=product_note,
@@ -282,13 +288,27 @@ def _find_header_in_workbook(
     raise ValueError(f"找不到订单明细表，必要字段：{required_labels}。已检查：{'；'.join(errors[:4])}")
 
 
-def _combine_notes(product_note: str, order_note: str) -> str:
-    parts = []
-    if product_note:
-        parts.append(f"商品备注：{product_note}")
-    if order_note:
-        parts.append(f"订单备注：{order_note}")
-    return "；".join(parts)
+def _order_output_note(product_note: str, order_note: str) -> str:
+    for value in (order_note, product_note):
+        text = _strip_note_label(value)
+        time_note = _delivery_time_note(text)
+        if time_note:
+            return time_note
+    return ""
+
+
+def _strip_note_label(value: str) -> str:
+    text = clean_text(value)
+    for prefix in ("商品备注：", "商品备注:", "订单备注：", "订单备注:"):
+        if text.startswith(prefix):
+            return clean_text(text[len(prefix) :])
+    return text
+
+
+def _delivery_time_note(value: str) -> str:
+    parts = [_strip_note_label(part) for part in NOTE_PART_SEPARATOR_RE.split(clean_text(value))]
+    time_parts = [part for part in parts if DELIVERY_TIME_RE.search(part)]
+    return "；".join(time_parts)
 
 
 def _row_dict(ws: Worksheet, row_number: int, columns: dict[str, int]) -> dict[str, Any]:
