@@ -12,7 +12,7 @@ from werkzeug.exceptions import HTTPException
 from .excel_io import read_orders, read_template, write_debug_workbook, write_purchase_import
 from .models import PurchaseLine, SkippedLine, SplitResult, UnmatchedLine
 from .normalization import decimal_to_excel
-from .splitter import DEFAULT_SKIP_KEYWORDS, split_orders
+from .splitter import split_orders
 from .web_state import (
     CURRENT_TEMPLATE,
     RUNS_DIR,
@@ -134,8 +134,7 @@ def create_app() -> Flask:
             return jsonify({"error": "没有可读取的订单文件"}), 400
 
         fuzzy_threshold = float(request.form.get("fuzzyThreshold") or 0.88)
-        skip_text = request.form.get("skipKeywords") or "营养餐"
-        skip_keywords = [item.strip() for item in skip_text.replace("，", ",").split(",") if item.strip()]
+        skip_keywords = parse_skip_keywords(request.form.get("skipKeywords"))
 
         order_lines = read_orders(order_paths)
         result = split_orders(
@@ -186,6 +185,12 @@ def validate_template_items(items) -> list[str]:
         if item.price is None:
             errors.append(f"第{index}行缺少采购单价")
     return errors
+
+
+def parse_skip_keywords(raw: str | None) -> list[str]:
+    if raw is None:
+        return []
+    return [item.strip() for item in raw.replace("，", ",").split(",") if item.strip()]
 
 
 def result_payload(result: SplitResult, run_id: str, *, has_purchase: bool) -> dict[str, Any]:

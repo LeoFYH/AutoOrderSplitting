@@ -3,7 +3,7 @@ const state = {
   sourceName: "",
   result: null,
   activeTab: "lines",
-  skipKeywords: ["营养餐"],
+  skipKeywords: [],
 };
 
 const fields = ["owner", "supplier", "product", "unit", "quantity", "price", "note", "agreement_price"];
