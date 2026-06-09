@@ -82,7 +82,7 @@ class ExcelIoTests(unittest.TestCase):
             self.assertEqual(written.cell(4, 8).value, "已设置采购协议价")
             self.assertEqual(written.cell(5, 1).value, "学校A")
             self.assertEqual(written.cell(5, 5).value, 2)
-            self.assertEqual(written.cell(5, 7).value, "燕麦10件，纯牛奶10件；号上午8：30-10点前送恒利仓库")
+            self.assertEqual(written.cell(5, 7).value, "燕麦10件，纯牛奶10件；号上午8：30-10点前送恒利仓库；不要辣；下午到")
             self.assertIsNone(written.cell(6, 1).value)
             self.assertEqual(written.auto_filter.ref, "A4:I5")
 

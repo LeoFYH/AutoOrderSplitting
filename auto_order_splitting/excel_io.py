@@ -307,11 +307,12 @@ def _clean_note_parts(value: str) -> list[str]:
     text = clean_text(value)
     if not text:
         return []
-    return [
-        _strip_note_label(part)
-        for part in text.replace("；", ";").replace("\n", ";").replace("\r", ";").split(";")
-        if _strip_note_label(part)
-    ]
+    parts: list[str] = []
+    for raw_part in text.replace("；", ";").replace("\n", ";").replace("\r", ";").split(";"):
+        part = _strip_note_label(raw_part)
+        if part:
+            parts.append(part)
+    return parts
 
 
 def _strip_note_label(value: str) -> str:
@@ -384,7 +385,7 @@ def _purchase_line_values(line: PurchaseLine) -> dict[str, Any]:
         "unit": line.unit,
         "quantity": decimal_to_excel(line.quantity),
         "price": line.price,
-        "note": _clean_output_note(line.note),
+        "note": _merge_output_notes(line.note, line.product_note, line.order_note),
         "order_note": _clean_output_note(line.order_note),
         "agreement_price": line.agreement_price,
     }
