@@ -4,6 +4,8 @@ const state = {
   result: null,
   activeTab: "lines",
   skipKeywords: [],
+  activeModule: "split",
+  supplierMarkerResult: null,
 };
 
 const fields = ["owner", "supplier", "product", "unit", "quantity", "price", "note", "agreement_price"];
@@ -31,6 +33,16 @@ const el = {
   summaryStrip: document.querySelector("#summaryStrip"),
   resultHead: document.querySelector("#resultTable thead"),
   resultBody: document.querySelector("#resultTable tbody"),
+  splitModule: document.querySelector("#splitModule"),
+  supplierMarkerModule: document.querySelector("#supplierMarkerModule"),
+  supplierMarkerForm: document.querySelector("#supplierMarkerForm"),
+  supplierPurchaseFile: document.querySelector("#supplierPurchaseFile"),
+  supplierPurchaseFileName: document.querySelector("#supplierPurchaseFileName"),
+  supplierKeyword: document.querySelector("#supplierKeyword"),
+  keepFirstCustomerUncolored: document.querySelector("#keepFirstCustomerUncolored"),
+  supplierMarkerMessage: document.querySelector("#supplierMarkerMessage"),
+  supplierMarkerSummary: document.querySelector("#supplierMarkerSummary"),
+  supplierMarkerDownloads: document.querySelector("#supplierMarkerDownloads"),
 };
 
 document.addEventListener("DOMContentLoaded", init);
@@ -51,6 +63,12 @@ function bindEvents() {
   el.orderFiles.addEventListener("change", renderOrderFiles);
   el.orderForm.addEventListener("submit", processOrders);
   el.addSkipKeyword.addEventListener("click", addSkipKeyword);
+  el.supplierMarkerForm.addEventListener("submit", processSupplierAnnotation);
+  el.supplierPurchaseFile.addEventListener("change", renderSupplierPurchaseFileName);
+
+  document.querySelectorAll(".module-tab").forEach((button) => {
+    button.addEventListener("click", () => switchModule(button.dataset.module));
+  });
 
   document.querySelectorAll(".tab").forEach((button) => {
     button.addEventListener("click", () => {
@@ -59,6 +77,15 @@ function bindEvents() {
       renderResultTable();
     });
   });
+}
+
+function switchModule(moduleName) {
+  state.activeModule = moduleName;
+  document.querySelectorAll(".module-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.module === moduleName);
+  });
+  el.splitModule.classList.toggle("hidden", moduleName !== "split");
+  el.supplierMarkerModule.classList.toggle("hidden", moduleName !== "supplier-marker");
 }
 
 async function loadTemplate() {
@@ -217,6 +244,11 @@ function renderOrderFiles() {
   el.orderFileList.innerHTML = files.map((file) => `<div>${escapeHtml(file.name)}</div>`).join("");
 }
 
+function renderSupplierPurchaseFileName() {
+  const file = el.supplierPurchaseFile.files[0];
+  el.supplierPurchaseFileName.textContent = file ? file.name : "未选择采购单";
+}
+
 function renderSkipKeywords() {
   const values = state.skipKeywords.length ? state.skipKeywords : [""];
   el.skipKeywordList.innerHTML = "";
@@ -309,6 +341,50 @@ async function processOrders(event) {
   } catch (error) {
     setMessage(error.message, true);
   }
+}
+
+async function processSupplierAnnotation(event) {
+  event.preventDefault();
+  const file = el.supplierPurchaseFile.files[0];
+  if (!file) {
+    setSupplierMarkerMessage("请选择蔬东坡采购单文件", true);
+    return;
+  }
+
+  const form = new FormData();
+  form.append("purchase", file);
+  form.append("supplierKeyword", el.supplierKeyword.value.trim());
+  form.append("keepFirstCustomerUncolored", el.keepFirstCustomerUncolored.checked ? "true" : "false");
+
+  setSupplierMarkerMessage("正在按供应商客户标注...");
+  el.supplierMarkerDownloads.innerHTML = "";
+  el.supplierMarkerSummary.innerHTML = "";
+  try {
+    const data = await apiJson("/api/supplier-annotate", { method: "POST", body: form });
+    state.supplierMarkerResult = data;
+    renderSupplierMarkerResult();
+    setSupplierMarkerMessage("已生成供应商采购单标注");
+  } catch (error) {
+    setSupplierMarkerMessage(error.message, true);
+  }
+}
+
+function renderSupplierMarkerResult() {
+  const result = state.supplierMarkerResult || {};
+  const summary = result.summary || {};
+  const supplierText = (result.suppliers || []).slice(0, 6).join("、") || "无";
+  const customerText = (result.customers || []).slice(0, 10).join("、") || "无";
+  el.supplierMarkerSummary.innerHTML = `
+    <div><strong>${escapeHtml(summary.matchedRows || 0)}</strong><span>标注行</span></div>
+    <div><strong>${escapeHtml(summary.supplierCount || 0)}</strong><span>供应商</span></div>
+    <div><strong>${escapeHtml(summary.customerCount || 0)}</strong><span>客户</span></div>
+    <p>供应商：${escapeHtml(supplierText)}</p>
+    <p>客户：${escapeHtml(customerText)}</p>
+  `;
+  const download = result.downloads?.annotated;
+  el.supplierMarkerDownloads.innerHTML = download
+    ? `<a href="${download}">下载供应商采购单标注.xlsx</a>`
+    : "";
 }
 
 function renderSummary() {
@@ -412,6 +488,11 @@ async function apiJson(url, options = {}) {
 function setMessage(text, isError = false) {
   el.message.textContent = text;
   el.message.classList.toggle("error", isError);
+}
+
+function setSupplierMarkerMessage(text, isError = false) {
+  el.supplierMarkerMessage.textContent = text;
+  el.supplierMarkerMessage.classList.toggle("error", isError);
 }
 
 function escapeHtml(value) {

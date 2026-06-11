@@ -13,6 +13,7 @@ from .excel_io import read_orders, read_template, write_debug_workbook, write_pu
 from .models import PurchaseLine, SkippedLine, SplitResult, UnmatchedLine
 from .normalization import decimal_to_excel
 from .splitter import split_orders
+from .supplier_marker import SupplierAnnotationSummary, annotate_supplier_purchase_order
 from .web_state import (
     CURRENT_TEMPLATE,
     RUNS_DIR,
@@ -155,6 +156,28 @@ def create_app() -> Flask:
 
         return jsonify(result_payload(result, run_id, has_purchase=has_purchase))
 
+    @app.post("/api/supplier-annotate")
+    def supplier_annotate():
+        file = request.files.get("purchase")
+        if file is None or not file.filename:
+            return jsonify({"error": "请选择蔬东坡采购单文件"}), 400
+
+        run_id = uuid.uuid4().hex[:12]
+        run_dir = RUNS_DIR / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        suffix = Path(file.filename).suffix or ".xlsx"
+        source_path = run_dir / f"supplier_purchase_source{suffix}"
+        output_path = run_dir / "供应商采购单标注.xlsx"
+        file.save(source_path)
+
+        summary = annotate_supplier_purchase_order(
+            source_path,
+            output_path,
+            supplier_keyword=request.form.get("supplierKeyword") or "",
+            keep_first_customer_uncolored=_bool_form("keepFirstCustomerUncolored", default=True),
+        )
+        return jsonify(supplier_annotation_payload(summary, run_id))
+
     @app.get("/download/<run_id>/<path:filename>")
     def download(run_id: str, filename: str):
         path = (RUNS_DIR / run_id / filename).resolve()
@@ -217,6 +240,23 @@ def result_payload(result: SplitResult, run_id: str, *, has_purchase: bool) -> d
             "unmatched": len(result.unmatched) > 500,
             "skipped": len(result.skipped) > 500,
             "warnings": len(result.warnings) > 500,
+        },
+    }
+
+
+def supplier_annotation_payload(summary: SupplierAnnotationSummary, run_id: str) -> dict[str, Any]:
+    return {
+        "runId": run_id,
+        "summary": {
+            "totalRows": summary.total_rows,
+            "matchedRows": summary.matched_rows,
+            "supplierCount": summary.supplier_count,
+            "customerCount": summary.customer_count,
+        },
+        "suppliers": summary.suppliers[:100],
+        "customers": summary.customers[:200],
+        "downloads": {
+            "annotated": f"/download/{run_id}/供应商采购单标注.xlsx",
         },
     }
 

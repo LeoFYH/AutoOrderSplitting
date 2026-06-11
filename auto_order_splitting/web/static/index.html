@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>自动拆单工具</title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260608a" />
+    <link rel="stylesheet" href="/assets/styles.css?v=20260611a" />
   </head>
   <body>
     <header class="app-header">
@@ -17,6 +17,12 @@
       </div>
     </header>
 
+    <nav class="module-tabs">
+      <button class="module-tab active" type="button" data-module="split">自动拆单</button>
+      <button class="module-tab" type="button" data-module="supplier-marker">供应商采购单标注</button>
+    </nav>
+
+    <div id="splitModule" class="module-section">
     <main class="workspace">
       <section class="panel template-panel">
         <div class="panel-head">
@@ -123,7 +129,45 @@
         </table>
       </div>
     </section>
+    </div>
 
-    <script src="/assets/app.js?v=20260608a"></script>
+    <section id="supplierMarkerModule" class="module-section marker-module hidden">
+      <section class="panel marker-panel">
+        <div class="panel-head">
+          <h2>供应商采购单标注</h2>
+          <button id="runSupplierMarker" form="supplierMarkerForm" type="submit" class="primary">生成标注采购单</button>
+        </div>
+
+        <form id="supplierMarkerForm" class="marker-form">
+          <div class="file-drop">
+            <span>导入蔬东坡采购单</span>
+            <label class="file-picker">
+              <input id="supplierPurchaseFile" name="purchase" type="file" accept=".xlsx" />
+              <span class="file-button">选择采购单文件</span>
+              <span id="supplierPurchaseFileName" class="file-name">未选择采购单</span>
+            </label>
+          </div>
+
+          <div class="marker-settings">
+            <label>
+              供应商名称 / 关键词
+              <input id="supplierKeyword" name="supplierKeyword" type="text" placeholder="留空则标注全部供应商" />
+            </label>
+            <label class="check-row">
+              <input id="keepFirstCustomerUncolored" name="keepFirstCustomerUncolored" type="checkbox" checked />
+              第一个客户保持白色
+            </label>
+          </div>
+        </form>
+
+        <div class="run-state marker-state">
+          <div id="supplierMarkerMessage" class="message">等待导入采购单</div>
+          <div id="supplierMarkerSummary" class="marker-summary"></div>
+          <div id="supplierMarkerDownloads" class="download-links"></div>
+        </div>
+      </section>
+    </section>
+
+    <script src="/assets/app.js?v=20260611a"></script>
   </body>
 </html>

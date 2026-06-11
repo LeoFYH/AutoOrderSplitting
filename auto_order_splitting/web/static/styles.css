@@ -97,8 +97,33 @@ input[type="search"] {
   font-weight: 600;
 }
 
+.module-tabs {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fffdf8;
+}
+
+.module-tab {
+  min-height: 30px;
+  background: transparent;
+}
+
+.module-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.module-section {
+  min-height: 0;
+}
+
 .workspace {
-  height: calc(100vh - 370px);
+  height: calc(100vh - 416px);
   min-height: 420px;
   display: grid;
   grid-template-columns: minmax(680px, 1fr) 360px;
@@ -426,6 +451,69 @@ td input:focus {
   overflow: hidden;
   display: grid;
   grid-template-rows: 62px 42px 1fr;
+}
+
+.marker-module {
+  padding: 14px;
+}
+
+.marker-panel {
+  max-width: 760px;
+  min-height: 420px;
+}
+
+.marker-form {
+  padding: 12px;
+  display: grid;
+  gap: 14px;
+}
+
+.marker-settings {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.marker-settings label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.marker-state {
+  margin-top: 0;
+}
+
+.marker-summary {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.marker-summary div {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  background: #fffefb;
+}
+
+.marker-summary strong {
+  display: block;
+  font-size: 20px;
+}
+
+.marker-summary span,
+.marker-summary p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.marker-summary p {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .summary-strip {
