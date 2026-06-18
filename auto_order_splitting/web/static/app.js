@@ -6,6 +6,7 @@ const state = {
   skipKeywords: [],
   activeModule: "split",
   supplierMarkerResult: null,
+  templateUploadPromise: null,
 };
 
 const fields = ["owner", "supplier", "product", "unit", "quantity", "price", "note", "agreement_price"];
@@ -56,7 +57,7 @@ function init() {
 
 function bindEvents() {
   el.templateForm.addEventListener("submit", uploadTemplate);
-  el.templateFile.addEventListener("change", renderTemplateFileName);
+  el.templateFile.addEventListener("change", handleTemplateFileChange);
   el.templateSearch.addEventListener("input", renderTemplateTable);
   el.addTemplateRow.addEventListener("click", addTemplateRow);
   el.saveTemplate.addEventListener("click", saveTemplate);
@@ -101,11 +102,36 @@ async function loadTemplate() {
 }
 
 async function uploadTemplate(event) {
-  event.preventDefault();
+  event?.preventDefault();
+  return queueTemplateUpload();
+}
+
+function handleTemplateFileChange(event) {
+  renderTemplateFileName();
+  if (el.templateFile.files[0]) {
+    queueTemplateUpload();
+  }
+}
+
+function queueTemplateUpload() {
+  if (state.templateUploadPromise) {
+    return state.templateUploadPromise;
+  }
+  const promise = uploadSelectedTemplate();
+  state.templateUploadPromise = promise;
+  promise.finally(() => {
+    if (state.templateUploadPromise === promise) {
+      state.templateUploadPromise = null;
+    }
+  });
+  return promise;
+}
+
+async function uploadSelectedTemplate() {
   const file = el.templateFile.files[0];
   if (!file) {
     setMessage("请选择模板文件", true);
-    return;
+    return false;
   }
 
   const form = new FormData();
@@ -120,8 +146,10 @@ async function uploadTemplate(event) {
     el.templateFile.value = "";
     renderTemplateFileName();
     setMessage(`模板已导入：${state.templateItems.length} 行`);
+    return true;
   } catch (error) {
     setMessage(error.message, true);
+    return false;
   }
 }
 
@@ -298,6 +326,12 @@ function collectSkipKeywords(options = {}) {
 
 async function processOrders(event) {
   event.preventDefault();
+  if (el.templateFile.files[0] || state.templateUploadPromise) {
+    const uploaded = await queueTemplateUpload();
+    if (!uploaded) {
+      return;
+    }
+  }
   collectTemplateItems();
   const hasLoadedTemplate = state.templateItems.length > 0;
   if (!hasLoadedTemplate) {
