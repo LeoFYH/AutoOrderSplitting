@@ -113,12 +113,24 @@ def create_app() -> Flask:
         orders_dir = run_dir / "orders"
         orders_dir.mkdir(parents=True, exist_ok=True)
 
+        template_fallback_warning = ""
         template_file = request.files.get("template")
         if template_file is not None and template_file.filename:
             template_suffix = Path(template_file.filename).suffix or ".xlsx"
             template_path = run_dir / f"采购总模板{template_suffix}"
             template_file.save(template_path)
-            template_items = read_template(template_path)
+            try:
+                template_items = read_template(template_path)
+            except ValueError as error:
+                saved_template_items = load_template_items()
+                if not saved_template_items or not CURRENT_TEMPLATE.exists():
+                    raise
+                template_items = saved_template_items
+                template_path = CURRENT_TEMPLATE
+                template_fallback_warning = (
+                    f"生成请求里带了一个无法作为采购总模板读取的文件「{template_file.filename}」，"
+                    f"已改用当前保存的采购总模板。原错误：{error}"
+                )
         else:
             template_items = load_template_items()
             if not template_items:
@@ -149,6 +161,8 @@ def create_app() -> Flask:
             skip_keywords=skip_keywords,
             fuzzy_threshold=fuzzy_threshold,
         )
+        if template_fallback_warning:
+            result.warnings.insert(0, template_fallback_warning)
 
         debug_path = run_dir / "调试明细.xlsx"
         write_debug_workbook(debug_path, result.lines, result.unmatched, result.skipped, result.warnings)
