@@ -117,6 +117,8 @@ async function uploadTemplate(event) {
     state.sourceName = data.sourceName || file.name;
     updateTemplateStatus();
     renderTemplateTable();
+    el.templateFile.value = "";
+    renderTemplateFileName();
     setMessage(`模板已导入：${state.templateItems.length} 行`);
   } catch (error) {
     setMessage(error.message, true);
@@ -297,9 +299,9 @@ function collectSkipKeywords(options = {}) {
 async function processOrders(event) {
   event.preventDefault();
   collectTemplateItems();
-  const templateFile = el.templateFile.files[0];
-  if (!templateFile && !state.templateItems.length) {
-    setMessage("请选择采购总模板", true);
+  const hasLoadedTemplate = state.templateItems.length > 0;
+  if (!hasLoadedTemplate) {
+    setMessage("请先上传采购总模板，确认左侧模板表格读取成功后再生成采购单", true);
     return;
   }
   if (!el.orderFiles.files.length) {
@@ -307,17 +309,12 @@ async function processOrders(event) {
     return;
   }
 
-  if (!templateFile) {
-    await saveTemplate();
-    if (el.message.classList.contains("error")) {
-      return;
-    }
+  await saveTemplate();
+  if (el.message.classList.contains("error")) {
+    return;
   }
 
   const form = new FormData();
-  if (templateFile) {
-    form.append("template", templateFile);
-  }
   Array.from(el.orderFiles.files).forEach((file) => form.append("orders", file));
   form.append("skipKeywords", collectSkipKeywords().join(","));
   form.append("fuzzyThreshold", el.fuzzyThreshold.value);
