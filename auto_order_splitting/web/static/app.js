@@ -467,7 +467,12 @@ function renderSimpleTable(headers, rows) {
 }
 
 async function apiJson(url, options = {}) {
-  const response = await fetch(url, options);
+  let response;
+  try {
+    response = await fetch(url, options);
+  } catch (error) {
+    throw new Error("请求没有连到服务器，可能是服务重启、处理超时或上传文件过大。请刷新页面重试；如果连续出现，请检查服务器日志。");
+  }
   const rawText = await response.text();
   let data = {};
   if (rawText) {

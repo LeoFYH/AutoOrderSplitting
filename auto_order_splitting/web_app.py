@@ -33,7 +33,7 @@ STATIC_DIR = PACKAGE_DIR / "web" / "static"
 def create_app() -> Flask:
     ensure_data_dirs()
     app = Flask(__name__, static_folder=None)
-    app.config["MAX_CONTENT_LENGTH"] = 80 * 1024 * 1024
+    app.config["MAX_CONTENT_LENGTH"] = 300 * 1024 * 1024
 
     @app.errorhandler(ValueError)
     def value_error(error: ValueError):
@@ -54,6 +54,10 @@ def create_app() -> Flask:
     @app.get("/assets/<path:name>")
     def assets(name: str):
         return send_from_directory(STATIC_DIR, name)
+
+    @app.get("/api/health")
+    def health():
+        return jsonify({"status": "ok"})
 
     @app.get("/api/template")
     def get_template():
