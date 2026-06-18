@@ -46,7 +46,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["customerCount"], 2)
         self.assertIn("供应商采购单标注.xlsx", payload["downloads"]["annotated"])
 
-    def test_process_falls_back_to_saved_template_when_template_upload_is_an_order_file(self):
+    def test_process_ignores_request_template_file_and_uses_saved_template(self):
         with tempfile.TemporaryDirectory() as tmp:
             data_dir = Path(tmp) / "data"
             old_web_app_runs_dir = web_app.RUNS_DIR
@@ -91,7 +91,7 @@ class WebAppTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["purchaseRows"], 1)
         self.assertEqual(payload["summary"]["unmatchedRows"], 0)
         self.assertIn("采购单.xlsx", payload["downloads"]["purchase"])
-        self.assertIn("无法作为采购总模板读取", payload["warnings"][0])
+        self.assertIn("已忽略请求中的模板文件", payload["warnings"][0])
 
 
 def _purchase_export_bytes() -> BytesIO:
