@@ -93,6 +93,44 @@ class WebAppTests(unittest.TestCase):
         self.assertIn("采购单.xlsx", payload["downloads"]["purchase"])
         self.assertIn("已忽略请求中的模板文件", payload["warnings"][0])
 
+    def test_invalid_template_upload_does_not_overwrite_saved_template_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp) / "data"
+            old_web_app_runs_dir = web_app.RUNS_DIR
+            old_web_app_current_template = web_app.CURRENT_TEMPLATE
+            old_state_data_dir = web_state.DATA_DIR
+            old_state_runs_dir = web_state.RUNS_DIR
+            old_state_current_template = web_state.CURRENT_TEMPLATE
+            old_state_template_json = web_state.TEMPLATE_JSON
+            try:
+                web_app.RUNS_DIR = data_dir / "runs"
+                web_app.CURRENT_TEMPLATE = data_dir / "current_template.xlsx"
+                web_state.DATA_DIR = data_dir
+                web_state.RUNS_DIR = data_dir / "runs"
+                web_state.CURRENT_TEMPLATE = data_dir / "current_template.xlsx"
+                web_state.TEMPLATE_JSON = data_dir / "current_template.json"
+                web_state.ensure_data_dirs()
+                web_app.CURRENT_TEMPLATE.write_bytes(_template_bytes().getvalue())
+
+                app = web_app.create_app()
+                client = app.test_client()
+                response = client.post(
+                    "/api/template/upload",
+                    data={"template": (_order_bytes(), "order.xlsx")},
+                    content_type="multipart/form-data",
+                )
+                self.assertEqual(response.status_code, 400)
+                items = read_template(web_app.CURRENT_TEMPLATE)
+                self.assertEqual(len(items), 1)
+                self.assertEqual(items[0].product, "牛肉")
+            finally:
+                web_app.RUNS_DIR = old_web_app_runs_dir
+                web_app.CURRENT_TEMPLATE = old_web_app_current_template
+                web_state.DATA_DIR = old_state_data_dir
+                web_state.RUNS_DIR = old_state_runs_dir
+                web_state.CURRENT_TEMPLATE = old_state_current_template
+                web_state.TEMPLATE_JSON = old_state_template_json
+
 
 def _purchase_export_bytes() -> BytesIO:
     wb = Workbook()

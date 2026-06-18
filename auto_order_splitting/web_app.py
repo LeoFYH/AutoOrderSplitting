@@ -80,8 +80,17 @@ def create_app() -> Flask:
         if file is None or not file.filename:
             return jsonify({"error": "请选择模板文件"}), 400
         ensure_data_dirs()
-        file.save(CURRENT_TEMPLATE)
-        items = read_template(CURRENT_TEMPLATE)
+        upload_dir = RUNS_DIR / "template_uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        temp_template = upload_dir / f"{uuid.uuid4().hex}{Path(file.filename).suffix or '.xlsx'}"
+        file.save(temp_template)
+        try:
+            items = read_template(temp_template)
+        except ValueError:
+            temp_template.unlink(missing_ok=True)
+            raise
+        shutil.copyfile(temp_template, CURRENT_TEMPLATE)
+        temp_template.unlink(missing_ok=True)
         save_template_items(items, source_name=file.filename)
         return jsonify(
             {
@@ -156,7 +165,15 @@ def create_app() -> Flask:
         has_purchase = not result.unmatched
         if has_purchase:
             purchase_path = run_dir / "采购单.xlsx"
-            write_purchase_import(template_path, purchase_path, result.lines)
+            try:
+                write_purchase_import(template_path, purchase_path, result.lines)
+            except ValueError as error:
+                return jsonify(
+                    {
+                        "error": "当前保存的采购总模板文件不可用，请在左侧重新上传正确的采购总模板后再生成采购单",
+                        "details": [str(error)],
+                    }
+                ), 400
 
         return jsonify(result_payload(result, run_id, has_purchase=has_purchase))
 
